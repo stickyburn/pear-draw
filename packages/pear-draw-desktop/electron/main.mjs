@@ -1,18 +1,19 @@
-import { app, BrowserWindow, ipcMain } from "electron";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import PearRuntime from "pear-runtime";
-
-import { isMac, isLinux, isWindows } from "which-runtime";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { command, flag } from "paparam";
+import PearRuntime from "pear-runtime";
+import { isLinux, isMac, isWindows } from "which-runtime";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Read package.json using dynamic import
 const pkgPath = path.join(__dirname, "..", "package.json");
-const pkg = JSON.parse(await import("node:fs").then(fs => fs.readFileSync(pkgPath, "utf-8")));
+const pkg = JSON.parse(
+	await import("node:fs").then((fs) => fs.readFileSync(pkgPath, "utf-8")),
+);
 const { name, productName, version, upgrade } = pkg;
 
 const workers = new Map();
@@ -76,21 +77,21 @@ function sendToAll(name, data) {
 async function getWorker(specifier) {
 	if (workers.has(specifier)) return workers.get(specifier);
 	const pearRuntime = getPear();
-	
+
 	// Resolve worker path - specifier is relative from project root (packages/pear-draw-desktop)
 	// So we need to go up one level to packages/ then into pear-draw-core
 	const workerPath = path.join(__dirname, "..", "..", specifier);
-	
+
 	const worker = pearRuntime.run(workerPath, [pearRuntime.storage]);
 
 	function onBeforeQuit() {
 		worker.destroy();
 	}
 
-	ipcMain.handle("pear:worker:writeIPC:" + specifier, (evt, data) => {
+	ipcMain.handle(`pear:worker:writeIPC:${specifier}`, (_evt, data) => {
 		try {
 			return worker.write(Buffer.from(data));
-		} catch (err) {
+		} catch (_err) {
 			// Worker disconnected, ignore write errors
 			return false;
 		}
@@ -98,12 +99,12 @@ async function getWorker(specifier) {
 
 	workers.set(specifier, worker);
 	worker.on("data", (data) => {
-		sendToAll("pear:worker:ipc:" + specifier, data);
+		sendToAll(`pear:worker:ipc:${specifier}`, data);
 	});
 	worker.once("exit", (code) => {
 		app.removeListener("before-quit", onBeforeQuit);
-		ipcMain.removeHandler("pear:worker:writeIPC:" + specifier);
-		sendToAll("pear:worker:exit:" + specifier, code);
+		ipcMain.removeHandler(`pear:worker:writeIPC:${specifier}`);
+		sendToAll(`pear:worker:exit:${specifier}`, code);
 		workers.delete(specifier);
 	});
 	app.on("before-quit", onBeforeQuit);
@@ -135,7 +136,7 @@ async function createWindow() {
 	);
 }
 
-ipcMain.handle("pear:startWorker", async (evt, filename) => {
+ipcMain.handle("pear:startWorker", async (_evt, filename) => {
 	await getWorker(filename);
 	return true;
 });

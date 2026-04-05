@@ -247,12 +247,8 @@ export function App() {
 
 	const handleStartHost = async (profile) => {
 		setProfileName(profile);
-		try {
-			const invite = await startHost(profile);
-			return invite;
-		} catch (err) {
-			throw err;
-		}
+		const invite = await startHost(profile);
+		return invite;
 	};
 
 	const handleJoinHost = async (profile, invite) => {

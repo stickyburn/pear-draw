@@ -106,7 +106,7 @@ const config = {
 						__dirname,
 						"out",
 						`${appName}-win32-${result.arch}`,
-						);
+					);
 					fs.mkdirSync(standardDir, { recursive: true });
 					const dest = path.join(standardDir, path.basename(artifact));
 					fs.renameSync(artifact, dest);

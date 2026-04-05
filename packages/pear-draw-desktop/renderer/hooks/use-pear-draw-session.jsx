@@ -16,15 +16,15 @@ export function usePearDrawSession() {
 
 	onMount(async () => {
 		const bridge = window.bridge;
-		
+
 		try {
 			await bridge.startWorker(WORKER_SPECIFIER);
-			
+
 			client = new WorkerClient(
 				(data) => bridge.writeWorkerIPC(WORKER_SPECIFIER, data),
 				(listener) => bridge.onWorkerIPC(WORKER_SPECIFIER, listener),
 			);
-			
+
 			client.onSnapshot((newSnapshot) => {
 				setSnapshot((prev) => {
 					const prevStr = JSON.stringify(prev);
@@ -33,9 +33,9 @@ export function usePearDrawSession() {
 					return newSnapshot;
 				});
 			});
-			
+
 			await client.subscribe();
-		} catch (err) {
+		} catch (_err) {
 			// Setup error silently handled
 		}
 	});

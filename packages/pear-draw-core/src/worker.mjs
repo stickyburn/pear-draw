@@ -1,5 +1,5 @@
-import ProtomuxRPC from "protomux-rpc";
 import c from "compact-encoding";
+import ProtomuxRPC from "protomux-rpc";
 import { PearDrawService } from "./pear-draw.mjs";
 
 const storageRoot = Bare.argv[2];
@@ -21,7 +21,12 @@ class IPCStream {
 				// Data from Bare.IPC is already a buffer, just pass it through
 				fn(Buffer.isBuffer(data) ? data : Buffer.from(data));
 			});
-		} else if (event === "close" || event === "error" || event === "end" || event === "drain") {
+		} else if (
+			event === "close" ||
+			event === "error" ||
+			event === "end" ||
+			event === "drain"
+		) {
 			this.#ipc.on(event, fn);
 		}
 		return this;
@@ -58,68 +63,100 @@ const rpc = new ProtomuxRPC(stream, {
 });
 
 // Session commands
-rpc.respond("session.startHost", { 
-	requestEncoding: c.string, 
-	responseEncoding: c.string 
-}, async (profileName) => {
-	const invite = await service.startSession(profileName);
-	return invite;
-});
+rpc.respond(
+	"session.startHost",
+	{
+		requestEncoding: c.string,
+		responseEncoding: c.string,
+	},
+	async (profileName) => {
+		const invite = await service.startSession(profileName);
+		return invite;
+	},
+);
 
-rpc.respond("session.joinHost", { 
-	requestEncoding: c.json, 
-	responseEncoding: c.raw 
-}, async (req) => {
-	await service.joinSession(req.profileName, req.inviteCode);
-	return Buffer.alloc(0);
-});
+rpc.respond(
+	"session.joinHost",
+	{
+		requestEncoding: c.json,
+		responseEncoding: c.raw,
+	},
+	async (req) => {
+		await service.joinSession(req.profileName, req.inviteCode);
+		return Buffer.alloc(0);
+	},
+);
 
-rpc.respond("session.addObject", { 
-	requestEncoding: c.json, 
-	responseEncoding: c.raw 
-}, async (obj) => {
-	await service.addObject(obj);
-	return Buffer.alloc(0);
-});
+rpc.respond(
+	"session.addObject",
+	{
+		requestEncoding: c.json,
+		responseEncoding: c.raw,
+	},
+	async (obj) => {
+		await service.addObject(obj);
+		return Buffer.alloc(0);
+	},
+);
 
-rpc.respond("session.updateObject", { 
-	requestEncoding: c.json, 
-	responseEncoding: c.raw 
-}, async (req) => {
-	await service.updateObject(req.id, req.updates);
-	return Buffer.alloc(0);
-});
+rpc.respond(
+	"session.updateObject",
+	{
+		requestEncoding: c.json,
+		responseEncoding: c.raw,
+	},
+	async (req) => {
+		await service.updateObject(req.id, req.updates);
+		return Buffer.alloc(0);
+	},
+);
 
-rpc.respond("session.updateCursor", { 
-	requestEncoding: c.json, 
-	responseEncoding: c.raw 
-}, async (req) => {
-	await service.updateCursor(req.peerId, req.data);
-	return Buffer.alloc(0);
-});
+rpc.respond(
+	"session.updateCursor",
+	{
+		requestEncoding: c.json,
+		responseEncoding: c.raw,
+	},
+	async (req) => {
+		await service.updateCursor(req.peerId, req.data);
+		return Buffer.alloc(0);
+	},
+);
 
-rpc.respond("session.clearBoard", { 
-	requestEncoding: c.raw, 
-	responseEncoding: c.raw 
-}, async () => {
-	await service.clearBoard();
-	return Buffer.alloc(0);
-});
+rpc.respond(
+	"session.clearBoard",
+	{
+		requestEncoding: c.raw,
+		responseEncoding: c.raw,
+	},
+	async () => {
+		await service.clearBoard();
+		return Buffer.alloc(0);
+	},
+);
 
 // Use polling instead of events - client calls getSnapshot repeatedly
-rpc.respond("session.getSnapshot", { 
-	requestEncoding: c.raw, 
-	responseEncoding: c.json 
-}, async () => {
-	const snapshot = service.getSnapshot();
-	return snapshot;
-});
+rpc.respond(
+	"session.getSnapshot",
+	{
+		requestEncoding: c.raw,
+		responseEncoding: c.json,
+	},
+	async () => {
+		const snapshot = service.getSnapshot();
+		return snapshot;
+	},
+);
 
-rpc.respond("session.subscribe", { 
-	requestEncoding: c.raw, 
-	responseEncoding: c.raw 
-}, async () => {
-	// In polling mode, subscribe is a no-op
-	// Client will poll getSnapshot instead
-	return Buffer.alloc(0);
-});
+rpc.respond(
+	"session.subscribe",
+	{
+		requestEncoding: c.raw,
+		responseEncoding: c.raw,
+	},
+	async () => {
+		// In polling mode, subscribe is a no-op
+		// Client will poll getSnapshot instead
+		return Buffer.alloc(0);
+	},
+);
