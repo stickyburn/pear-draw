@@ -10,11 +10,13 @@ contextBridge.exposeInMainWorld("bridge", {
 		ipcRenderer.on(`pear:event:${name}`, wrap);
 		return () => ipcRenderer.removeListener(`pear:event:${name}`, wrap);
 	},
-	// Draw-specific methods
 	startHost: (profileName) => ipcRenderer.invoke("draw:startHost", profileName),
 	joinHost: (profileName, invite) =>
 		ipcRenderer.invoke("draw:joinHost", profileName, invite),
-	addStroke: (stroke) => ipcRenderer.invoke("draw:addStroke", stroke),
+	addObject: (obj) => ipcRenderer.invoke("draw:addObject", obj),
+	updateObject: (id, obj) => ipcRenderer.invoke("draw:updateObject", id, obj),
+	updateCursor: (peerId, cursorData) =>
+		ipcRenderer.invoke("draw:updateCursor", peerId, cursorData),
 	clearBoard: () => ipcRenderer.invoke("draw:clearBoard"),
 	getSnapshot: () => ipcRenderer.invoke("draw:getSnapshot"),
 	subscribe: () => ipcRenderer.invoke("draw:subscribe"),

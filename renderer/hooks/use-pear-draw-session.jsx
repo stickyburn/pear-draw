@@ -1,55 +1,47 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 
 const DEFAULT_SNAPSHOT = {
 	session: { status: "idle", mode: null, invite: "", error: "" },
-	strokes: [],
+	objects: [],
+	cursors: [],
 };
 
 export function usePearDrawSession() {
 	const [snapshot, setSnapshot] = createSignal(DEFAULT_SNAPSHOT);
-	let subscribed = false;
+	let unsubscribe = null;
+	let cursorThrottle = null;
 
 	onMount(() => {
-		if (subscribed) return;
-		subscribed = true;
-
 		const bridge = window.bridge;
 		bridge.subscribe();
-
-		const unsubscribe = bridge.onSnapshot((snapshot) => {
-			setSnapshot(snapshot);
-		});
-
-		return unsubscribe;
+		unsubscribe = bridge.onSnapshot(setSnapshot);
 	});
 
-	const startHost = async (profileName) => {
-		const bridge = window.bridge;
-		return await bridge.startHost(profileName);
-	};
+	onCleanup(() => {
+		unsubscribe?.();
+		if (cursorThrottle) clearTimeout(cursorThrottle);
+	});
 
-	const joinHost = async (profileName, inviteInput) => {
-		const bridge = window.bridge;
-		await bridge.joinHost(profileName, inviteInput);
-	};
+	const bridge = window.bridge;
 
-	const clearBoard = async () => {
-		const bridge = window.bridge;
-		await bridge.clearBoard();
-	};
-
-	const addStroke = async (stroke) => {
-		const bridge = window.bridge;
-		await bridge.addStroke(stroke);
+	const updateCursor = (peerId, data) => {
+		if (cursorThrottle) return;
+		cursorThrottle = setTimeout(() => {
+			bridge.updateCursor(peerId, data).catch(() => {});
+			cursorThrottle = null;
+		}, 33);
 	};
 
 	return {
 		session: () => snapshot().session,
-		strokes: () => snapshot().strokes,
+		objects: () => snapshot().objects,
+		cursors: () => snapshot().cursors,
 		canDraw: () => snapshot().session.status === "ready",
-		startHost,
-		joinHost,
-		clearBoard,
-		addStroke,
+		startHost: (profile) => bridge.startHost(profile),
+		joinHost: (profile, invite) => bridge.joinHost(profile, invite),
+		clearBoard: () => bridge.clearBoard(),
+		addObject: (obj) => bridge.addObject(obj),
+		updateObject: (id, obj) => bridge.updateObject(id, obj),
+		updateCursor,
 	};
 }

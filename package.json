@@ -25,6 +25,7 @@
 	"dependencies": {
 		"autopass": "^3.4.0",
 		"corestore": "^7.9.2",
+		"fabric": "^7.2.0",
 		"paparam": "^1.10.0",
 		"pear-runtime": "^0.5.0",
 		"solid-js": "^1.9.5",

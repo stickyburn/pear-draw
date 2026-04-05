@@ -13,7 +13,8 @@ class PearDrawService {
 	#pass = null;
 	#store = null;
 	#session = { ...DEFAULT_SESSION };
-	#strokes = [];
+	#objects = [];
+	#cursors = [];
 	#listeners = new Set();
 
 	constructor(storageRoot) {
@@ -23,7 +24,8 @@ class PearDrawService {
 	getSnapshot() {
 		return {
 			session: { ...this.#session },
-			strokes: [...this.#strokes],
+			objects: [...this.#objects],
+			cursors: [...this.#cursors],
 		};
 	}
 
@@ -31,6 +33,17 @@ class PearDrawService {
 		this.#listeners.add(listener);
 		listener(this.getSnapshot());
 		return () => this.#listeners.delete(listener);
+	}
+
+	async #closeCurrent() {
+		const currentPass = this.#pass;
+		const currentStore = this.#store;
+
+		this.#pass = null;
+		this.#store = null;
+
+		await currentPass?.close?.().catch(() => {});
+		await currentStore?.close?.().catch(() => {});
 	}
 
 	async startSession(profileName) {
@@ -41,12 +54,13 @@ class PearDrawService {
 				invite: "",
 				error: "",
 			};
-			this.#strokes = [];
+			this.#objects = [];
+			this.#cursors = [];
 			this.#emit();
 
 			await this.#closeCurrent();
 
-			const store = this.#createStore(profileName);
+			const store = await this.#createStore(profileName);
 			const pass = new Autopass(store);
 			await pass.ready();
 
@@ -88,11 +102,12 @@ class PearDrawService {
 				error: "",
 			};
 			this.#emit();
-			this.#strokes = [];
+			this.#objects = [];
+			this.#cursors = [];
 
 			await this.#closeCurrent();
 
-			const store = this.#createStore(profileName);
+			const store = await this.#createStore(profileName);
 			pair = Autopass.pair(store, invite);
 
 			const timeout = new Promise((_, reject) =>
@@ -117,77 +132,9 @@ class PearDrawService {
 		}
 	}
 
-	async addStroke(stroke) {
-		if (!this.#pass) return;
-
-		const key = `stroke:${Date.now()}:${Math.random().toString(16).slice(2, 8)}`;
-		const record = { ...stroke, id: key };
-
-		this.#strokes = [...this.#strokes, record];
-		this.#emit();
-
-		try {
-			await this.#pass.add(
-				key,
-				JSON.stringify({
-					points: record.points,
-					color: record.color,
-					width: record.width,
-					createdAt: record.createdAt,
-					author: record.author,
-				}),
-			);
-		} catch (err) {
-			this.#strokes = this.#strokes.filter((s) => s.id !== key);
-			this.#emit();
-			throw err;
-		}
-	}
-
-	async clearBoard() {
-		if (!this.#pass) throw new Error("No active session");
-
-		try {
-			const records = await this.#pass.list().toArray();
-
-			for (const record of records) {
-				if (record.key.startsWith("stroke:")) {
-					await this.#pass.remove(record.key);
-				}
-			}
-
-			this.#strokes = [];
-			this.#emit();
-		} catch (err) {
-			console.error("Clear failed:", err);
-			throw err;
-		}
-	}
-
-	async dispose() {
-		await this.#closeCurrent();
-		this.#listeners.clear();
-	}
-
-	#emit() {
-		const snap = this.getSnapshot();
-		for (const listener of this.#listeners) listener(snap);
-	}
-
-	#createStore(profileName) {
+	async #createStore(profileName) {
 		const safe = profileName.trim().replace(/[^a-zA-Z0-9_-]/g, "-") || "peer";
 		return new Corestore(`${this.#storageRoot}/pear-draw/${safe}`);
-	}
-
-	async #closeCurrent() {
-		const currentPass = this.#pass;
-		const currentStore = this.#store;
-
-		this.#pass = null;
-		this.#store = null;
-
-		await currentPass?.close?.().catch(() => {});
-		await currentStore?.close?.().catch(() => {});
 	}
 
 	async #attach(pass, store, mode, invite = "") {
@@ -210,33 +157,124 @@ class PearDrawService {
 
 	async #hydrate(pass) {
 		const records = await pass.list().toArray();
-		const strokes = [];
+		const objects = [];
+		const cursors = [];
 
 		for (const rec of records) {
-			if (!rec.key.startsWith("stroke:")) continue;
-
 			try {
-				const value = JSON.parse(rec.value);
-
-				if (!Array.isArray(value?.points) || value.points.length < 2) continue;
-
-				strokes.push({
-					id: rec.key,
-					color: value.color || "#60a5fa",
-					width: Number.isFinite(value.width) ? value.width : 3,
-					points: value.points,
-					createdAt: Number.isFinite(value.createdAt)
-						? value.createdAt
-						: Date.now(),
-					author: value.author || "peer",
-				});
-			} catch {}
+				if (rec.key.startsWith("object:")) {
+					const value =
+						typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
+					objects.push({
+						id: rec.key,
+						...value,
+					});
+				} else if (rec.key.startsWith("cursor:")) {
+					const value =
+						typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
+					cursors.push({
+						peerId: rec.key.replace("cursor:", ""),
+						...value,
+					});
+				}
+			} catch {
+				// Skip invalid records
+			}
 		}
 
-		strokes.sort((a, b) => a.createdAt - b.createdAt);
+		objects.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
-		this.#strokes = strokes;
+		this.#objects = objects;
+		this.#cursors = cursors;
 		this.#emit();
+	}
+
+	#emit() {
+		const snap = this.getSnapshot();
+		for (const listener of this.#listeners) listener(snap);
+	}
+
+	async addObject(obj) {
+		if (!this.#pass) throw new Error("No active session");
+
+		const key = `object:${Date.now()}:${Math.random().toString(16).slice(2, 8)}`;
+		const record = {
+			id: key,
+			...obj,
+		};
+
+		this.#objects = [...this.#objects, record];
+		this.#emit();
+
+		try {
+			await this.#pass.add(key, JSON.stringify(obj));
+		} catch (err) {
+			this.#objects = this.#objects.filter((o) => o.id !== key);
+			this.#emit();
+			throw err;
+		}
+	}
+
+	async updateObject(key, obj) {
+		if (!this.#pass) throw new Error("No active session");
+
+		await this.#pass.add(key, JSON.stringify(obj));
+
+		this.#objects = this.#objects.map((o) =>
+			o.id === key ? { ...o, ...obj, id: key } : o,
+		);
+		this.#emit();
+	}
+
+	async clearBoard() {
+		if (!this.#pass) throw new Error("No active session");
+
+		try {
+			const records = await this.#pass.list().toArray();
+
+			for (const record of records) {
+				if (record.key.startsWith("object:")) {
+					await this.#pass.remove(record.key);
+				}
+			}
+
+			this.#objects = [];
+			this.#emit();
+		} catch (err) {
+			console.error("Clear failed:", err);
+			throw err;
+		}
+	}
+
+	async updateCursor(peerId, cursorData) {
+		if (!this.#pass) return;
+
+		const key = `cursor:${peerId}`;
+		const record = {
+			peerId,
+			...cursorData,
+			updatedAt: Date.now(),
+		};
+
+		this.#cursors = this.#cursors.filter((c) => c.peerId !== peerId);
+		this.#cursors.push(record);
+		this.#emit();
+
+		try {
+			await this.#pass.add(key, JSON.stringify(cursorData));
+		} catch (err) {
+			console.error("Cursor update failed:", err);
+		}
+	}
+
+	tick() {
+		const now = Date.now();
+		this.#cursors = this.#cursors.filter((c) => now - c.updatedAt < 5000);
+	}
+
+	async dispose() {
+		await this.#closeCurrent();
+		this.#listeners.clear();
 	}
 }
 

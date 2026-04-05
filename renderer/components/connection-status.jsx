@@ -13,6 +13,7 @@ export function ConnectionStatus(props) {
 
 	const handleClearBoard = async () => {
 		setIsOpen(false);
+
 		const result = await swal.fire({
 			title: "Clear Board?",
 			text: "This will remove all strokes for everyone.",
@@ -21,6 +22,7 @@ export function ConnectionStatus(props) {
 			confirmButtonText: "Clear",
 			cancelButtonText: "Cancel",
 		});
+
 		if (result.isConfirmed) {
 			try {
 				await props.onClearBoard();

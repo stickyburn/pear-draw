@@ -155,9 +155,19 @@ ipcMain.handle("draw:joinHost", async (_evt, profileName, invite) => {
 	await service.joinSession(profileName, invite);
 });
 
-ipcMain.handle("draw:addStroke", async (_evt, stroke) => {
+ipcMain.handle("draw:addObject", async (_evt, obj) => {
 	const service = getDrawService();
-	await service.addStroke(stroke);
+	await service.addObject(obj);
+});
+
+ipcMain.handle("draw:updateObject", async (_evt, id, obj) => {
+	const service = getDrawService();
+	await service.updateObject(id, obj);
+});
+
+ipcMain.handle("draw:updateCursor", async (_evt, peerId, cursorData) => {
+	const service = getDrawService();
+	await service.updateCursor(peerId, cursorData);
 });
 
 ipcMain.handle("draw:clearBoard", async () => {
@@ -194,34 +204,28 @@ app.on("open-url", (evt, url) => {
 	handleDeepLink(url);
 });
 
-const lock = app.requestSingleInstanceLock();
+app.on("second-instance", (_evt, args) => {
+	const url = args.find((arg) => arg.startsWith(`${protocol}://`));
+	if (url) handleDeepLink(url);
+});
 
-if (!lock) {
-	app.quit();
-} else {
-	app.on("second-instance", (_evt, args) => {
-		const url = args.find((arg) => arg.startsWith(`${protocol}://`));
-		if (url) handleDeepLink(url);
+app.whenReady().then(() => {
+	createWindow().catch((err) => {
+		console.error("Failed to create window:", err);
+		app.quit();
 	});
 
-	app.whenReady().then(() => {
-		createWindow().catch((err) => {
-			console.error("Failed to create window:", err);
-			app.quit();
-		});
-
-		app.on("activate", () => {
-			if (BrowserWindow.getAllWindows().length === 0) {
-				createWindow().catch((err) => {
-					console.error("Failed to create window:", err);
-				});
-			}
-		});
-	});
-
-	app.on("window-all-closed", () => {
-		if (process.platform !== "darwin") {
-			app.quit();
+	app.on("activate", () => {
+		if (BrowserWindow.getAllWindows().length === 0) {
+			createWindow().catch((err) => {
+				console.error("Failed to create window:", err);
+			});
 		}
 	});
-}
+});
+
+app.on("window-all-closed", () => {
+	if (process.platform !== "darwin") {
+		app.quit();
+	}
+});

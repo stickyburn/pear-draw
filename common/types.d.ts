@@ -10,6 +10,18 @@ export interface Point {
 	y: number;
 }
 
+export type Tool = "freehand" | "rect";
+
+export interface CanvasObject {
+	id: string;
+	type: "path" | "rect";
+	author: string;
+	createdAt: number;
+	color: string;
+	width: number;
+	[key: string]: unknown;
+}
+
 export interface Stroke {
 	id: string;
 	points: Point[];
@@ -19,16 +31,27 @@ export interface Stroke {
 	author: string;
 }
 
+export interface CursorState {
+	peerId: string;
+	profileName: string;
+	x: number;
+	y: number;
+	color: string;
+	updatedAt: number;
+}
+
 export interface Snapshot {
 	session: SessionState;
-	strokes: Stroke[];
+	objects: CanvasObject[];
+	cursors: CursorState[];
 }
 
 export type Command =
 	| "session.startHost"
 	| "session.joinHost"
-	| "session.addStroke"
+	| "session.addObject"
 	| "session.clearBoard"
+	| "session.updateCursor"
 	| "session.getSnapshot"
 	| "session.subscribe";
 
