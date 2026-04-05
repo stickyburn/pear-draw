@@ -2,7 +2,6 @@ import { colors, strokeColors } from "../styles/common.jsx";
 
 export function Toolbar(props) {
 	const tools = [
-		{ id: "select", label: "Select", icon: "↖" },
 		{ id: "freehand", label: "Draw", icon: "✎" },
 		{ id: "rect", label: "Rect", icon: "▢" },
 	];

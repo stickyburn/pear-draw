@@ -84,7 +84,8 @@ export class WorkerClient {
 					listener(snapshot);
 				}
 			} catch (err) {
-				// Polling errors are silent
+				// Stop polling on errors (worker disconnected)
+				this.stopPolling();
 			}
 		};
 		
@@ -101,12 +102,10 @@ export class WorkerClient {
 	}
 
 	async startHost(profileName) {
-		console.log("[worker-client] startHost called:", profileName);
 		const result = await this.#rpc.request("session.startHost", profileName, {
 			requestEncoding: c.string,
 			responseEncoding: c.string,
 		});
-		console.log("[worker-client] startHost result:", result.slice(0, 20) + "...");
 		return result;
 	}
 
@@ -154,7 +153,6 @@ export class WorkerClient {
 	}
 
 	async subscribe() {
-		console.log("[worker-client] subscribe called - starting polling");
 		// Start polling instead of using events
 		this.startPolling();
 		await this.#rpc.request("session.subscribe", emptyBuffer(), {

@@ -36,7 +36,6 @@ function getPear() {
 	const appPath = getAppPath();
 	let dir = null;
 	if (pearStore) {
-		console.log(`pear store: ${pearStore}`);
 		dir = pearStore;
 	} else if (appPath === null) {
 		dir = path.join(os.tmpdir(), "pear", appName);
@@ -89,7 +88,12 @@ async function getWorker(specifier) {
 	}
 
 	ipcMain.handle("pear:worker:writeIPC:" + specifier, (evt, data) => {
-		return worker.write(Buffer.from(data));
+		try {
+			return worker.write(Buffer.from(data));
+		} catch (err) {
+			// Worker disconnected, ignore write errors
+			return false;
+		}
 	});
 
 	workers.set(specifier, worker);

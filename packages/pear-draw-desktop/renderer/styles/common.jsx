@@ -50,22 +50,6 @@ export const strokeColors = [
 	"#f472b6", // Pink
 ];
 
-export function getRandomStrokeColor() {
-	return strokeColors[Math.floor(Math.random() * strokeColors.length)];
-}
-
-export const strokeDefaults = {
-	width: 3,
-};
-
-export const canvasTheme = {
-	bg: colors.canvasBg,
-	gridColor: colors.canvasGrid,
-	gridSpacing: 20,
-	gridDotRadius: 1,
-	accentColor: colors.accentPear,
-};
-
 export const swal2Overrides = `
   .swal2-popup { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; border: 1px solid ${colors.border} !important; }
   .swal2-title { font-size: auto !important; font-weight: auto !important; margin-bottom: 0 !important; }

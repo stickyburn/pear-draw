@@ -15,14 +15,10 @@ export function usePearDrawSession() {
 	let cursorThrottle = null;
 
 	onMount(async () => {
-		console.log("[use-pear-draw-session] onMount called");
 		const bridge = window.bridge;
-		console.log("[use-pear-draw-session] Bridge:", bridge);
-		console.log("[use-pear-draw-session] Starting worker:", WORKER_SPECIFIER);
 		
 		try {
 			await bridge.startWorker(WORKER_SPECIFIER);
-			console.log("[use-pear-draw-session] Worker started successfully");
 			
 			client = new WorkerClient(
 				(data) => bridge.writeWorkerIPC(WORKER_SPECIFIER, data),
@@ -30,26 +26,21 @@ export function usePearDrawSession() {
 			);
 			
 			client.onSnapshot((newSnapshot) => {
-				// Only update if session status changed or objects changed
 				setSnapshot((prev) => {
 					const prevStr = JSON.stringify(prev);
 					const newStr = JSON.stringify(newSnapshot);
-					if (prevStr === newStr) return prev; // No change
-					
-					console.log("[use-pear-draw-session] Snapshot updated, status:", newSnapshot.session?.status);
+					if (prevStr === newStr) return prev;
 					return newSnapshot;
 				});
 			});
 			
 			await client.subscribe();
-			console.log("[use-pear-draw-session] Subscribe complete, polling started");
 		} catch (err) {
-			console.error("[use-pear-draw-session] Setup failed:", err);
+			// Setup error silently handled
 		}
 	});
 
 	onCleanup(() => {
-		console.log("[use-pear-draw-session] Cleaning up");
 		if (cursorThrottle) clearTimeout(cursorThrottle);
 		client?.destroy();
 	});

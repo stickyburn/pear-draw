@@ -1,15 +1,8 @@
 import ProtomuxRPC from "protomux-rpc";
 import c from "compact-encoding";
-import b4a from "b4a";
 import { PearDrawService } from "./pear-draw.mjs";
 
-console.log("[worker] Starting worker...");
-console.log("[worker] typeof Bare:", typeof Bare);
-console.log("[worker] Bare.IPC exists:", typeof Bare?.IPC !== 'undefined');
-console.log("[worker] argv:", typeof Bare !== 'undefined' ? Bare.argv : 'Bare not defined');
-
 const storageRoot = Bare.argv[2];
-console.log("[worker] storageRoot:", storageRoot);
 
 const service = new PearDrawService(storageRoot);
 
@@ -69,9 +62,7 @@ rpc.respond("session.startHost", {
 	requestEncoding: c.string, 
 	responseEncoding: c.string 
 }, async (profileName) => {
-	console.log("[worker] session.startHost called for:", profileName);
 	const invite = await service.startSession(profileName);
-	console.log("[worker] startHost complete, invite:", invite.slice(0, 20) + "...");
 	return invite;
 });
 
@@ -79,7 +70,6 @@ rpc.respond("session.joinHost", {
 	requestEncoding: c.json, 
 	responseEncoding: c.raw 
 }, async (req) => {
-	console.log("[worker] session.joinHost called");
 	await service.joinSession(req.profileName, req.inviteCode);
 	return Buffer.alloc(0);
 });
@@ -129,10 +119,7 @@ rpc.respond("session.subscribe", {
 	requestEncoding: c.raw, 
 	responseEncoding: c.raw 
 }, async () => {
-	console.log("[worker] session.subscribe called - using polling mode");
 	// In polling mode, subscribe is a no-op
 	// Client will poll getSnapshot instead
 	return Buffer.alloc(0);
 });
-
-console.log("[worker] Worker initialized and ready");

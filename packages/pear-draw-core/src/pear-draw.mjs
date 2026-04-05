@@ -241,7 +241,7 @@ class PearDrawService {
       this.#objects = [];
       this.#emit();
     } catch (err) {
-      console.error("Clear failed:", err);
+      // Error handled silently
       throw err;
     }
   }
@@ -263,13 +263,8 @@ class PearDrawService {
     try {
       await this.#pass.add(key, JSON.stringify(cursorData));
     } catch (err) {
-      console.error("Cursor update failed:", err);
+      // Error handled silently
     }
-  }
-
-  tick() {
-    const now = Date.now();
-    this.#cursors = this.#cursors.filter((c) => now - c.updatedAt < 5000);
   }
 
   async dispose() {
