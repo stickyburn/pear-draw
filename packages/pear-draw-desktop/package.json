@@ -1,0 +1,48 @@
+{
+	"name": "pear-draw-desktop",
+	"productName": "PearDraw",
+	"version": "1.0.0",
+	"upgrade": "pear://CHANGE_ME",
+	"description": "P2P canvas collaboration - Desktop",
+	"license": "",
+	"author": "",
+	"type": "module",
+	"main": "electron/main.mjs",
+	"private": true,
+	"scripts": {
+		"dev": "concurrently \"vite\" \"PEAR_DEV_SERVER_URL=http://localhost:3000 electron-forge start -- --no-updates\"",
+		"build": "vite build",
+		"start": "npm run build && electron-forge start -- --no-updates",
+		"host": "npm run build && electron . --storage /tmp/pear-draw-host --no-updates",
+		"guest": "npm run build && electron . --storage /tmp/pear-draw-guest --no-updates",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"package": "electron-forge package",
+		"make:darwin": "electron-forge make --platform=darwin",
+		"make:win32": "electron-forge make --platform=win32",
+		"make:linux": "electron-forge package && ./scripts/build-app-image.sh"
+	},
+	"dependencies": {
+		"autopass": "^3.4.0",
+		"corestore": "^7.9.2",
+		"fabric": "^7.2.0",
+		"paparam": "^1.10.0",
+		"pear-draw-core": "file:../pear-draw-core",
+		"pear-runtime": "^0.5.0",
+		"solid-js": "^1.9.5",
+		"sweetalert2": "^11.26.24",
+		"which-runtime": "^1.3.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.10",
+		"@electron-forge/cli": "^7.11.1",
+		"@electron-forge/maker-dmg": "^7.11.1",
+		"@electron-forge/maker-msix": "^7.11.1",
+		"concurrently": "^9.1.2",
+		"electron": "^40.2.1",
+		"electron-forge-plugin-prune-prebuilds": "^1.0.0",
+		"electron-forge-plugin-universal-prebuilds": "^1.0.0",
+		"vite": "^6.2.0",
+		"vite-plugin-solid": "^2.11.11"
+	}
+}

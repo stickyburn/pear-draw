@@ -247,7 +247,15 @@ export function App() {
 
 	const handleStartHost = async (profile) => {
 		setProfileName(profile);
-		return startHost(profile);
+		console.log("[App] Starting host with profile:", profile);
+		try {
+			const invite = await startHost(profile);
+			console.log("[App] Got invite:", invite);
+			return invite;
+		} catch (err) {
+			console.error("[App] startHost failed:", err);
+			throw err;
+		}
 	};
 
 	const handleJoinHost = async (profile, invite) => {

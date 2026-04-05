@@ -1,8 +1,15 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const pkg = require("./package.json");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { isWindows } from "which-runtime";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Read package.json
+const pkgPath = path.join(__dirname, "package.json");
+const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 const appName = pkg.productName ?? pkg.name;
-const { isWindows } = require("which-runtime");
 
 function getWindowsKitVersion() {
 	const programFiles =
@@ -48,7 +55,7 @@ if (process.env.MAC_CODESIGN_IDENTITY) {
 	};
 }
 
-module.exports = {
+const config = {
 	packagerConfig,
 
 	makers: [
@@ -99,7 +106,7 @@ module.exports = {
 						__dirname,
 						"out",
 						`${appName}-win32-${result.arch}`,
-					);
+						);
 					fs.mkdirSync(standardDir, { recursive: true });
 					const dest = path.join(standardDir, path.basename(artifact));
 					fs.renameSync(artifact, dest);
@@ -126,3 +133,5 @@ module.exports = {
 		},
 	],
 };
+
+export default config;

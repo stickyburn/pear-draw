@@ -1,0 +1,10 @@
+{
+  "name": "pear-draw-mobile",
+  "version": "1.0.0",
+  "description": "P2P canvas collaboration - Mobile (React Native)",
+  "private": true,
+  "dependencies": {
+    "pear-draw-core": "file:../pear-draw-core",
+    "react-native-bare-kit": "^0.13.3"
+  }
+}
