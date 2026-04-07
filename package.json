@@ -1,18 +1,20 @@
 {
-  "name": "pear-draw",
-  "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "dev": "npm run dev --workspace=pear-draw-desktop",
-    "build": "npm run build --workspace=pear-draw-desktop",
-    "start": "npm run start --workspace=pear-draw-desktop",
-    "lint": "npm run lint --workspace=pear-draw-desktop",
-    "format": "npm run format --workspace=pear-draw-desktop",
-    "package": "npm run package --workspace=pear-draw-desktop",
-    "make:darwin": "npm run make:darwin --workspace=pear-draw-desktop",
-    "make:win32": "npm run make:win32 --workspace=pear-draw-desktop",
-    "make:linux": "npm run make:linux --workspace=pear-draw-desktop"
-  }
+	"name": "pear-draw",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "npm run dev --workspace=pear-draw-desktop",
+		"build": "npm run build --workspace=pear-draw-desktop",
+		"start": "npm run start --workspace=pear-draw-desktop",
+		"host": "npm run host --workspace=pear-draw-desktop",
+		"guest": "npm run guest --workspace=pear-draw-desktop",
+		"lint": "npm run lint --workspace=pear-draw-desktop",
+		"format": "npm run format --workspace=pear-draw-desktop",
+		"package": "npm run package --workspace=pear-draw-desktop",
+		"make:darwin": "npm run make:darwin --workspace=pear-draw-desktop",
+		"make:win32": "npm run make:win32 --workspace=pear-draw-desktop",
+		"make:linux": "npm run make:linux --workspace=pear-draw-desktop"
+	}
 }
