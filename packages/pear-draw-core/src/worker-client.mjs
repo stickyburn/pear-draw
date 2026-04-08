@@ -1,164 +1,102 @@
-import ProtomuxRPC from "protomux-rpc";
+import RPC from "bare-rpc";
 import c from "compact-encoding";
+import { BridgeTransport } from "./bridge-transport.mjs";
+import {
+	CMD_ADD_OBJECT,
+	CMD_CLEAR_BOARD,
+	CMD_GET_SNAPSHOT,
+	CMD_JOIN_HOST,
+	CMD_START_HOST,
+	CMD_UPDATE_CURSOR,
+	CMD_UPDATE_OBJECT,
+	EVT_SNAPSHOT,
+} from "./rpc-commands.mjs";
 
-// Create a proper duplex stream wrapper for the IPC bridge
-class IPCStream {
-	#write;
-	#unsubscribe;
-	#handlers = new Map();
-	destroyed = false;
+const SPECIFIER = "pear-draw-core/src/worker.mjs";
 
-	constructor(write, subscribe) {
-		this.#write = write;
-
-		this.#unsubscribe = subscribe((data) => {
-			// Data from Electron IPC - convert to Uint8Array if needed
-			const buf = data instanceof Uint8Array ? data : new Uint8Array(data);
-			for (const [event, handlers] of this.#handlers) {
-				if (event === "data") {
-					for (const h of handlers) h(buf);
-				}
-			}
-		});
-	}
-
-	on(event, fn) {
-		if (!this.#handlers.has(event)) {
-			this.#handlers.set(event, new Set());
-		}
-		this.#handlers.get(event).add(fn);
-		return this;
-	}
-
-	write(data) {
-		if (this.destroyed) return false;
-		this.#write(data);
-		return true;
-	}
-
-	end() {
-		this.destroy();
-	}
-
-	destroy() {
-		if (this.destroyed) return;
-		this.destroyed = true;
-		this.#unsubscribe?.();
-		this.#handlers.clear();
-	}
-
-	pause() {
-		// Not implemented
-	}
-
-	resume() {
-		// Not implemented
-	}
-}
-
-// Helper for empty buffer (works in both Node.js and browser)
-function emptyBuffer() {
-	return new Uint8Array(0);
-}
-
-export class WorkerClient {
-	#rpc;
-	#stream;
+export class PearDrawClient {
+	#transport = null;
+	#rpc = null;
 	#snapshotListeners = new Set();
-	#pollInterval = null;
 
-	constructor(write, subscribe) {
-		this.#stream = new IPCStream(write, subscribe);
-		this.#rpc = new ProtomuxRPC(this.#stream, {
-			protocol: "pear-draw-rpc",
-		});
+	constructor() {
+		// Intentionally empty — call init() to start the worker and set up RPC
 	}
 
-	startPolling(intervalMs = 100) {
-		if (this.#pollInterval) return;
-		
-		const poll = async () => {
+	async init() {
+		if (this.#rpc) return;
+
+		if (typeof window === "undefined" || !window.bridge) {
+			throw new Error(
+				"PearDrawClient requires window.bridge (renderer context)",
+			);
+		}
+
+		// Create duplex stream transport (starts listening for incoming data)
+		this.#transport = new BridgeTransport(SPECIFIER, window.bridge);
+
+		// Create RPC over transport, handle incoming events from the worker
+		this.#rpc = new RPC(this.#transport, (req) => {
 			try {
-				const snapshot = await this.getSnapshot();
-				for (const listener of this.#snapshotListeners) {
-					listener(snapshot);
+				if (req.command === EVT_SNAPSHOT) {
+					const snapshot = c.decode(c.any, req.data);
+					for (const listener of this.#snapshotListeners) {
+						listener(snapshot);
+					}
 				}
 			} catch (err) {
-				// Stop polling on errors (worker disconnected)
-				this.stopPolling();
+				console.error("[WorkerClient] Error handling event:", err);
 			}
-		};
-		
-		this.#pollInterval = setInterval(poll, intervalMs);
-		// Initial poll
-		poll();
+		});
+
+		// Start the worker — transport is already listening, so no data is lost
+		await window.bridge.startWorker(SPECIFIER);
 	}
 
-	stopPolling() {
-		if (this.#pollInterval) {
-			clearInterval(this.#pollInterval);
-			this.#pollInterval = null;
-		}
+	async #sendRequest(command, data) {
+		const req = this.#rpc.request(command);
+		req.send(data, c.any);
+		return req.reply(c.any);
 	}
 
 	async startHost(profileName) {
-		const result = await this.#rpc.request("session.startHost", profileName, {
-			requestEncoding: c.string,
-			responseEncoding: c.string,
-		});
-		return result;
+		await this.init();
+		return this.#sendRequest(CMD_START_HOST, { profileName });
 	}
 
 	async joinHost(profileName, inviteCode) {
-		const payload = { profileName, inviteCode };
-		await this.#rpc.request("session.joinHost", payload, {
-			requestEncoding: c.json,
-			responseEncoding: c.raw,
-		});
+		await this.init();
+		return this.#sendRequest(CMD_JOIN_HOST, { profileName, inviteCode });
 	}
 
 	async addObject(obj) {
-		await this.#rpc.request("session.addObject", obj, {
-			requestEncoding: c.json,
-			responseEncoding: c.raw,
-		});
+		await this.init();
+		return this.#sendRequest(CMD_ADD_OBJECT, { obj });
 	}
 
 	async updateObject(id, updates) {
-		await this.#rpc.request("session.updateObject", { id, updates }, {
-			requestEncoding: c.json,
-			responseEncoding: c.raw,
-		});
+		await this.init();
+		return this.#sendRequest(CMD_UPDATE_OBJECT, { id, updates });
 	}
 
 	async updateCursor(peerId, data) {
-		await this.#rpc.request("session.updateCursor", { peerId, data }, {
-			requestEncoding: c.json,
-			responseEncoding: c.raw,
-		});
+		await this.init();
+		return this.#sendRequest(CMD_UPDATE_CURSOR, { peerId, data });
 	}
 
 	async clearBoard() {
-		await this.#rpc.request("session.clearBoard", emptyBuffer(), {
-			requestEncoding: c.raw,
-			responseEncoding: c.raw,
-		});
+		await this.init();
+		return this.#sendRequest(CMD_CLEAR_BOARD, {});
 	}
 
 	async getSnapshot() {
-		return await this.#rpc.request("session.getSnapshot", emptyBuffer(), {
-			requestEncoding: c.raw,
-			responseEncoding: c.json,
-		});
+		await this.init();
+		return this.#sendRequest(CMD_GET_SNAPSHOT, {});
 	}
 
 	async subscribe() {
-		// Start polling instead of using events
-		this.startPolling();
-		await this.#rpc.request("session.subscribe", emptyBuffer(), {
-			requestEncoding: c.raw,
-			responseEncoding: c.raw,
-		});
+		await this.init();
+		return this.getSnapshot();
 	}
 
 	onSnapshot(listener) {
@@ -167,8 +105,11 @@ export class WorkerClient {
 	}
 
 	destroy() {
-		this.stopPolling();
-		this.#stream.destroy();
 		this.#snapshotListeners.clear();
+		if (this.#transport) {
+			this.#transport.destroy();
+			this.#transport = null;
+		}
+		this.#rpc = null;
 	}
 }

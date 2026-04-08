@@ -2,7 +2,7 @@
 	"name": "pear-draw-desktop",
 	"productName": "PearDraw",
 	"version": "1.0.0",
-"upgrade": "pear://jbghi3xikcxb6nmgwqshhi7z4jhk1b93qhuethiy1oonqyku1b8o",
+	"upgrade": "pear://jbghi3xikcxb6nmgwqshhi7z4jhk1b93qhuethiy1oonqyku1b8o",
 	"description": "P2P canvas collaboration - Desktop",
 	"license": "",
 	"author": "",

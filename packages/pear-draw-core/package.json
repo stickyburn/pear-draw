@@ -7,13 +7,19 @@
 	"exports": {
 		".": "./src/pear-draw.mjs",
 		"./worker": "./src/worker.mjs",
-		"./worker-client": "./src/worker-client.mjs"
+		"./worker-client": "./src/worker-client.mjs",
+		"./rpc-commands": "./src/rpc-commands.mjs",
+		"./bridge-transport": "./src/bridge-transport.mjs"
 	},
 	"files": [
 		"src/"
 	],
 	"dependencies": {
 		"autopass": "^3.4.0",
-		"corestore": "^7.9.2"
+		"corestore": "^7.9.2",
+		"bare-rpc": "^1.2.0",
+		"compact-encoding": "^2.19.2",
+		"b4a": "^1.6.6",
+		"streamx": "^2.25.0"
 	}
 }
