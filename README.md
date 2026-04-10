@@ -23,11 +23,11 @@
 
 `git clone https://github.com/stickyburn/pear-draw.git`
 
-`npm install`
+`pnpm install`
 
-`npm run host:dev` [Host session, copy link from menu]
+`pnpm run host:dev` [Host session, copy link from menu]
 
-`npm run guest:dev` [Join session, add copied link]
+`pnpm run guest:dev` [Join session, add copied link]
 
 <div align="center">
   <img src="assets/ui-2.webp" alt="UI main menu" width="400">

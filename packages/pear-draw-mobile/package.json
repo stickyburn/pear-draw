@@ -4,7 +4,7 @@
   "description": "P2P canvas collaboration - Mobile (React Native)",
   "private": true,
   "dependencies": {
-    "pear-draw-core": "file:../pear-draw-core",
+    "pear-draw-core": "workspace:*",
     "react-native-bare-kit": "^0.13.3"
   }
 }
