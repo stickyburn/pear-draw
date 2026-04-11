@@ -51,9 +51,14 @@ export function usePearDrawSession() {
 		canDraw: () => snapshot().session.status === "ready",
 		startHost: (profile) => client?.startHost(profile),
 		joinHost: (profile, invite) => client?.joinHost(profile, invite),
+		disconnect: async () => {
+			await client?.disconnect();
+			setSnapshot(DEFAULT_SNAPSHOT);
+		},
 		clearBoard: () => client?.clearBoard(),
 		addObject: (obj) => client?.addObject(obj),
 		updateObject: (id, obj) => client?.updateObject(id, obj),
+		deleteObject: (id) => client?.deleteObject(id),
 		updateCursor,
 	};
 }

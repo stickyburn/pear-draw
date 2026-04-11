@@ -30,8 +30,11 @@ class PearDrawService {
   }
 
   subscribe(listener) {
+    console.log("[Service] Subscribe called, listeners:", this.#listeners.size);
     this.#listeners.add(listener);
-    listener(this.getSnapshot());
+    const snap = this.getSnapshot();
+    console.log("[Service] Initial snapshot:", snap.objects.length, "objects");
+    listener(snap);
     return () => this.#listeners.delete(listener);
   }
 
@@ -44,6 +47,14 @@ class PearDrawService {
 
     await currentPass?.close?.().catch(() => {});
     await currentStore?.close?.().catch(() => {});
+  }
+
+  async disconnect() {
+    await this.#closeCurrent();
+    this.#session = { ...DEFAULT_SESSION };
+    this.#objects = [];
+    this.#cursors = [];
+    this.#emit();
   }
 
   async startSession(profileName) {
@@ -165,9 +176,10 @@ class PearDrawService {
         if (rec.key.startsWith("object:")) {
           const value =
             typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
+          // The id is the autopass key itself, which matches value.id
           objects.push({
-            id: rec.key,
             ...value,
+            id: value.id || rec.key,
           });
         } else if (rec.key.startsWith("cursor:")) {
           const value =
@@ -191,24 +203,38 @@ class PearDrawService {
 
   #emit() {
     const snap = this.getSnapshot();
+    console.log("[Service] Emitting snapshot:", snap.objects.length, "objects, status:", snap.session.status);
     for (const listener of this.#listeners) listener(snap);
   }
 
   async addObject(obj) {
-    if (!this.#pass) throw new Error("No active session");
+    console.log("[Service] addObject called, obj:", typeof obj, obj?.id, obj?.type);
+    if (!obj) {
+      console.error("[Service] addObject received undefined object!");
+      throw new Error("Cannot add undefined object");
+    }
+    if (!this.#pass) {
+      console.error("[Service] No active session!");
+      throw new Error("No active session");
+    }
 
-    const key = `object:${Date.now()}:${Math.random().toString(16).slice(2, 8)}`;
-    const record = {
-      id: key,
-      ...obj,
-    };
+    // obj.id already has the "object:" prefix (set by setObjectMeta in the renderer)
+    const key = obj.id;
 
-    this.#objects = [...this.#objects, record];
+    if (!key) {
+      console.error("[Service] addObject: object has no id!", obj);
+      throw new Error("Object missing id");
+    }
+
+    this.#objects = [...this.#objects, { ...obj, id: key }];
     this.#emit();
 
     try {
+      console.log("[Service] Calling autopass.add for:", key);
       await this.#pass.add(key, JSON.stringify(obj));
+      console.log("[Service] autopass.add succeeded");
     } catch (err) {
+      console.error("[Service] autopass.add error:", err);
       this.#objects = this.#objects.filter((o) => o.id !== key);
       this.#emit();
       throw err;
@@ -223,6 +249,19 @@ class PearDrawService {
     this.#objects = this.#objects.map((o) =>
       o.id === key ? { ...o, ...obj, id: key } : o,
     );
+    this.#emit();
+  }
+
+  async deleteObject(id) {
+    if (!this.#pass) throw new Error("No active session");
+
+    try {
+      await this.#pass.remove(id);
+    } catch {
+      // Object may have already been removed
+    }
+
+    this.#objects = this.#objects.filter((o) => o.id !== id);
     this.#emit();
   }
 

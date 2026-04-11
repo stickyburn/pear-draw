@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import { colors } from "../styles/common.jsx";
+import { colors, fonts, easings } from "../styles/common.jsx";
 
 export function CursorOverlay(props) {
 	return (
@@ -24,32 +24,33 @@ export function CursorOverlay(props) {
 								position: "absolute",
 								left: `${x()}px`,
 								top: `${y()}px`,
-								transform: "translate(-50%, -50%)",
-								transition: "left 0.1s ease-out, top 0.1s ease-out",
+								transition: `left 80ms ${easings.gentle}, top 80ms ${easings.gentle}`,
 							}}
 						>
-							<div
-								style={{
-									width: "20px",
-									height: "20px",
-									"border-radius": "50%",
-									background: cursor.color || colors.accentPear,
-									border: `2px solid ${colors.textPrimary}`,
-									"box-shadow": "0 2px 8px rgba(0,0,0,0.3)",
-								}}
-							/>
+							{/* Arrow cursor — sharp, no shadow */}
+							<svg width="14" height="18" viewBox="0 0 14 18">
+								<path
+									d="M0 0 L0 14 L4 10.5 L7 16 L9 15 L6 9.5 L11 9.5 Z"
+									fill={cursor.color || colors.snow}
+									stroke={colors.carbon}
+									strokeWidth="0.75"
+								/>
+							</svg>
+							{/* Name tag */}
 							<div
 								style={{
 									position: "absolute",
-									left: "24px",
-									top: "0",
-									background: colors.bgCard,
-									color: colors.textPrimary,
-									padding: "2px 8px",
-									"border-radius": "4px",
-									"font-size": "12px",
+									left: "15px",
+									top: "14px",
+									background: colors.carbon,
+									color: colors.snow,
+									padding: "1px 6px",
+									"border-radius": "0",
+									"font-size": "0.6rem",
+									"font-family": fonts.mono,
+									"letter-spacing": "0.06em",
 									"white-space": "nowrap",
-									border: `1px solid ${colors.border}`,
+									border: `1px solid ${colors.granite}`,
 								}}
 							>
 								{cursor.profileName || "peer"}

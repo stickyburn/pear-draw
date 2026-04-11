@@ -9,6 +9,6 @@ contextBridge.exposeInMainWorld("bridge", {
 			ipcRenderer.removeListener(`pear:worker:ipc:${specifier}`, wrap);
 	},
 	writeWorkerIPC: (specifier, data) => {
-		return ipcRenderer.invoke(`pear:worker:writeIPC:${specifier}`, data);
+		return ipcRenderer.invoke("pear:worker:writeIPC", { specifier, data });
 	},
 });

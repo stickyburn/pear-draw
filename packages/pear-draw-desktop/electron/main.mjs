@@ -19,6 +19,21 @@ const { name, productName, version, upgrade } = pkg;
 const workers = new Map();
 let pear = null;
 
+// Single dynamic handler for ALL worker IPC
+// Registered at startup - handlers are always ready before workers spawn
+ipcMain.handle("pear:worker:writeIPC", async (_evt, { specifier, data }) => {
+	console.log("[Main] writeWorkerIPC called for:", specifier, "workers:", [...workers.keys()]);
+	const worker = workers.get(specifier);
+	if (!worker) {
+		throw new Error(`Worker ${specifier} not running`);
+	}
+	try {
+		return worker.write(Buffer.from(data));
+	} catch (_err) {
+		return false;
+	}
+});
+
 const appName = productName ?? name;
 
 const cmd = command(
@@ -75,6 +90,7 @@ function sendToAll(name, data) {
 }
 
 async function getWorker(specifier) {
+	console.log("[Main] getWorker called for:", specifier);
 	if (workers.has(specifier)) return workers.get(specifier);
 	const pearRuntime = getPear();
 
@@ -88,24 +104,28 @@ async function getWorker(specifier) {
 		worker.destroy();
 	}
 
-	ipcMain.handle(`pear:worker:writeIPC:${specifier}`, (_evt, data) => {
-		try {
-			return worker.write(Buffer.from(data));
-		} catch (_err) {
-			// Worker disconnected, ignore write errors
-			return false;
-		}
-	});
-
 	workers.set(specifier, worker);
+	console.log("[Main] Worker added to map:", specifier);
+	
+	// Capture worker stdout/stderr for debugging
+	worker.stdout?.on("data", (data) => {
+		console.log("[Worker stdout]", data.toString().trim());
+	});
+	worker.stderr?.on("data", (data) => {
+		console.error("[Worker stderr]", data.toString().trim());
+	});
+	
 	worker.on("data", (data) => {
 		sendToAll(`pear:worker:ipc:${specifier}`, data);
 	});
 	worker.once("exit", (code) => {
+		console.log("[Main] Worker exited:", specifier, "code:", code);
 		app.removeListener("before-quit", onBeforeQuit);
-		ipcMain.removeHandler(`pear:worker:writeIPC:${specifier}`);
 		sendToAll(`pear:worker:exit:${specifier}`, code);
 		workers.delete(specifier);
+	});
+	worker.on("error", (err) => {
+		console.error("[Main] Worker error:", specifier, err);
 	});
 	app.on("before-quit", onBeforeQuit);
 	return worker;
@@ -137,7 +157,9 @@ async function createWindow() {
 }
 
 ipcMain.handle("pear:startWorker", async (_evt, filename) => {
+	console.log("[Main] startWorker handler called for:", filename);
 	await getWorker(filename);
+	console.log("[Main] startWorker handler completed for:", filename);
 	return true;
 });
 

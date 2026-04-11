@@ -9,6 +9,8 @@ export const CMD_UPDATE_OBJECT = 4;
 export const CMD_UPDATE_CURSOR = 5;
 export const CMD_CLEAR_BOARD = 6;
 export const CMD_GET_SNAPSHOT = 7;
+export const CMD_DISCONNECT = 8;
+export const CMD_DELETE_OBJECT = 9;
 
 // One-way event pushes (id=0 in bare-rpc framing)
 export const EVT_SNAPSHOT = 100;

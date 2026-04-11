@@ -4,6 +4,8 @@ import { PearDrawService } from "./pear-draw.mjs";
 import {
 	CMD_ADD_OBJECT,
 	CMD_CLEAR_BOARD,
+	CMD_DELETE_OBJECT,
+	CMD_DISCONNECT,
 	CMD_GET_SNAPSHOT,
 	CMD_JOIN_HOST,
 	CMD_START_HOST,
@@ -13,87 +15,84 @@ import {
 } from "./rpc-commands.mjs";
 
 const storageRoot = Bare.argv[2];
-
 const service = new PearDrawService(storageRoot);
 
 // --- Set up RPC command router ---------------------------------------------
+// valueEncoding: null disables compact-encoding so we handle
+// serialization manually with JSON — matching the bare-rpc README pattern
+// where req.data is a Buffer and req.reply() auto-encodes strings.
+const router = new RPC.CommandRouter({ valueEncoding: null });
 
-const router = new RPC.CommandRouter();
-
-router.respond(
-	CMD_START_HOST,
-	{ requestEncoding: c.any, responseEncoding: c.any },
-	async (_req, data) => {
-		console.log("[Worker] startHost:", data.profileName);
-		const invite = await service.startSession(data.profileName);
-		console.log("[Worker] startHost result:", invite);
-		return invite;
-	},
-);
-
-router.respond(
-	CMD_JOIN_HOST,
-	{ requestEncoding: c.any, responseEncoding: c.any },
-	async (_req, data) => {
-		await service.joinSession(data.profileName, data.inviteCode);
-		return { success: true };
-	},
-);
-
-router.respond(
-	CMD_ADD_OBJECT,
-	{ requestEncoding: c.any, responseEncoding: c.any },
-	async (_req, data) => {
-		await service.addObject(data.obj);
-		return { success: true };
-	},
-);
-
-router.respond(
-	CMD_UPDATE_OBJECT,
-	{ requestEncoding: c.any, responseEncoding: c.any },
-	async (_req, data) => {
-		await service.updateObject(data.id, data.updates);
-		return { success: true };
-	},
-);
-
-router.respond(
-	CMD_UPDATE_CURSOR,
-	{ requestEncoding: c.any, responseEncoding: c.any },
-	async (_req, data) => {
-		await service.updateCursor(data.peerId, data.data);
-		return { success: true };
-	},
-);
-
-router.respond(
-	CMD_CLEAR_BOARD,
-	{ requestEncoding: c.any, responseEncoding: c.any },
-	async () => {
-		await service.clearBoard();
-		return { success: true };
-	},
-);
-
-router.respond(
-	CMD_GET_SNAPSHOT,
-	{ requestEncoding: c.any, responseEncoding: c.any },
-	() => {
-		return service.getSnapshot();
-	},
-);
-
-// --- Create RPC over Bare.IPC
-
-const rpc = new RPC(Bare.IPC, router);
-
-// --- Subscribe to snapshot updates and push as events
-
-service.subscribe((snapshot) => {
-	const evt = rpc.event(EVT_SNAPSHOT);
-	evt.send(snapshot, c.any);
+router.respond(CMD_START_HOST, async (req) => {
+	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
+	const invite = await service.startSession(data.profileName);
+	return JSON.stringify(invite);
 });
 
-// Signal ready
+router.respond(CMD_JOIN_HOST, async (req) => {
+	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
+	await service.joinSession(data.profileName, data.inviteCode);
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_ADD_OBJECT, async (req) => {
+	const raw = c.decode(c.raw.utf8, req.data);
+	console.log("[Worker] CMD_ADD_OBJECT raw data:", raw.slice(0, 200));
+	const data = JSON.parse(raw);
+	await service.addObject(data.obj);
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_UPDATE_OBJECT, async (req) => {
+	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
+	await service.updateObject(data.id, data.updates);
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_DELETE_OBJECT, async (req) => {
+	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
+	await service.deleteObject(data.id);
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_UPDATE_CURSOR, async (req) => {
+	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
+	await service.updateCursor(data.peerId, data.data);
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_CLEAR_BOARD, async () => {
+	await service.clearBoard();
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_DISCONNECT, async () => {
+	await service.disconnect();
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_GET_SNAPSHOT, () => {
+	const snapshot = service.getSnapshot();
+	return JSON.stringify(snapshot);
+});
+
+// --- Create RPC over Bare.IPC ----------------------------------------------
+console.log("[Worker] Creating RPC over Bare.IPC...");
+const rpc = new RPC(Bare.IPC, router);
+console.log("[Worker] RPC created");
+
+// --- Subscribe to snapshot updates and push as events ----------------------
+service.subscribe((snapshot) => {
+	try {
+		const evt = rpc.event(EVT_SNAPSHOT);
+		evt.send(JSON.stringify(snapshot));
+	} catch (err) {
+		console.error("[Worker] Error sending snapshot event:", err);
+	}
+});
+
 console.log("Worker: PearDraw worker ready (bare-rpc)");
+
+Bare.on("exit", (code) => console.log("[Worker] Bare exit:", code));
+Bare.on("uncaughtException", (err) => console.error("[Worker] Uncaught exception:", err));
+Bare.on("unhandledRejection", (err) => console.error("[Worker] Unhandled rejection:", err));
