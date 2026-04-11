@@ -4,6 +4,8 @@ import { BridgeTransport } from "./bridge-transport.mjs";
 import {
 	CMD_ADD_OBJECT,
 	CMD_CLEAR_BOARD,
+	CMD_CURSOR_LEAVE,
+	CMD_CURSOR_MOVE,
 	CMD_DELETE_OBJECT,
 	CMD_DISCONNECT,
 	CMD_GET_SNAPSHOT,
@@ -11,6 +13,9 @@ import {
 	CMD_START_HOST,
 	CMD_UPDATE_CURSOR,
 	CMD_UPDATE_OBJECT,
+	EVT_CURSOR_LEAVE,
+	EVT_CURSOR_REMOVE,
+	EVT_CURSOR_UPDATE,
 	EVT_SNAPSHOT,
 } from "./rpc-commands.mjs";
 
@@ -20,6 +25,9 @@ export class PearDrawClient {
 	#transport = null;
 	#rpc = null;
 	#snapshotListeners = new Set();
+	#cursorUpdateListeners = new Set();
+	#cursorRemoveListeners = new Set();
+	#cursorLeaveListeners = new Set();
 
 	constructor() {
 		// Intentionally empty — call init() to start the worker and set up RPC
@@ -35,9 +43,7 @@ export class PearDrawClient {
 		}
 
 		// Start the worker FIRST so it's in the workers map before we set up IPC
-		console.log("[Renderer] Calling startWorker...");
 		await window.bridge.startWorker(SPECIFIER);
-		console.log("[Renderer] startWorker completed");
 
 		// Create duplex stream transport (starts listening for incoming data)
 		this.#transport = new BridgeTransport(SPECIFIER, window.bridge);
@@ -46,11 +52,28 @@ export class PearDrawClient {
 		this.#rpc = new RPC(this.#transport, (req) => {
 			try {
 				if (req.command === EVT_SNAPSHOT) {
-					// Data is c.raw.utf8 encoded (length-prefixed string)
 					const dataStr = c.decode(c.raw.utf8, req.data);
 					const snapshot = JSON.parse(dataStr);
 					for (const listener of this.#snapshotListeners) {
 						listener(snapshot);
+					}
+				} else if (req.command === EVT_CURSOR_UPDATE) {
+					const dataStr = c.decode(c.raw.utf8, req.data);
+					const cursor = JSON.parse(dataStr);
+					for (const listener of this.#cursorUpdateListeners) {
+						listener(cursor);
+					}
+				} else if (req.command === EVT_CURSOR_LEAVE) {
+					const dataStr = c.decode(c.raw.utf8, req.data);
+					const data = JSON.parse(dataStr);
+					for (const listener of this.#cursorLeaveListeners) {
+						listener(data);
+					}
+				} else if (req.command === EVT_CURSOR_REMOVE) {
+					const dataStr = c.decode(c.raw.utf8, req.data);
+					const data = JSON.parse(dataStr);
+					for (const listener of this.#cursorRemoveListeners) {
+						listener(data);
 					}
 				}
 			} catch (err) {
@@ -60,17 +83,25 @@ export class PearDrawClient {
 	}
 
 	async #sendRequest(command, data) {
-		console.log("[Renderer] Sending request:", command, JSON.stringify(data)?.slice(0, 100));
 		const req = this.#rpc.request(command);
 		// Stringify to avoid compact-encoding issues with nested objects
 		req.send(JSON.stringify(data));
 		const reply = await req.reply();
 		// Data is c.raw.utf8 encoded (length-prefixed string)
 		const replyStr = c.decode(c.raw.utf8, reply);
-		console.log("[Renderer] Raw reply:", replyStr?.slice(0, 100));
 		const result = JSON.parse(replyStr);
-		console.log("[Renderer] Got reply for:", command);
 		return result;
+	}
+
+	async #sendFireAndForget(command, data) {
+		try {
+			const req = this.#rpc.request(command);
+			req.send(JSON.stringify(data));
+			// Don't await reply for low-latency cursor updates
+			req.reply().catch(() => {});
+		} catch {
+			// Fire-and-forget — silently ignore errors
+		}
 	}
 
 	async startHost(profileName) {
@@ -98,9 +129,22 @@ export class PearDrawClient {
 		return this.#sendRequest(CMD_DELETE_OBJECT, { id });
 	}
 
+	/** Legacy cursor update (calls CMD_UPDATE_CURSOR, which wraps to moveCursor on service) */
 	async updateCursor(peerId, data) {
 		await this.init();
 		return this.#sendRequest(CMD_UPDATE_CURSOR, { peerId, data });
+	}
+
+	/** Ephemeral cursor: send local cursor position (fire-and-forget for low latency) */
+	moveCursor(peerId, data) {
+		if (!this.#rpc) return;
+		this.#sendFireAndForget(CMD_CURSOR_MOVE, { peerId, ...data });
+	}
+
+	/** Ephemeral cursor: local pointer left the canvas */
+	leaveCursor(peerId) {
+		if (!this.#rpc) return;
+		this.#sendFireAndForget(CMD_CURSOR_LEAVE, { peerId });
 	}
 
 	async clearBoard() {
@@ -128,8 +172,26 @@ export class PearDrawClient {
 		return () => this.#snapshotListeners.delete(listener);
 	}
 
+	onCursorUpdate(listener) {
+		this.#cursorUpdateListeners.add(listener);
+		return () => this.#cursorUpdateListeners.delete(listener);
+	}
+
+	onCursorRemove(listener) {
+		this.#cursorRemoveListeners.add(listener);
+		return () => this.#cursorRemoveListeners.delete(listener);
+	}
+
+	onCursorLeave(listener) {
+		this.#cursorLeaveListeners.add(listener);
+		return () => this.#cursorLeaveListeners.delete(listener);
+	}
+
 	destroy() {
 		this.#snapshotListeners.clear();
+		this.#cursorUpdateListeners.clear();
+		this.#cursorRemoveListeners.clear();
+		this.#cursorLeaveListeners.clear();
 		if (this.#transport) {
 			this.#transport.destroy();
 			this.#transport = null;

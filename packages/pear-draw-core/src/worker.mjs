@@ -4,6 +4,8 @@ import { PearDrawService } from "./pear-draw.mjs";
 import {
 	CMD_ADD_OBJECT,
 	CMD_CLEAR_BOARD,
+	CMD_CURSOR_LEAVE,
+	CMD_CURSOR_MOVE,
 	CMD_DELETE_OBJECT,
 	CMD_DISCONNECT,
 	CMD_GET_SNAPSHOT,
@@ -11,6 +13,9 @@ import {
 	CMD_START_HOST,
 	CMD_UPDATE_CURSOR,
 	CMD_UPDATE_OBJECT,
+	EVT_CURSOR_LEAVE,
+	EVT_CURSOR_REMOVE,
+	EVT_CURSOR_UPDATE,
 	EVT_SNAPSHOT,
 } from "./rpc-commands.mjs";
 
@@ -37,7 +42,6 @@ router.respond(CMD_JOIN_HOST, async (req) => {
 
 router.respond(CMD_ADD_OBJECT, async (req) => {
 	const raw = c.decode(c.raw.utf8, req.data);
-	console.log("[Worker] CMD_ADD_OBJECT raw data:", raw.slice(0, 200));
 	const data = JSON.parse(raw);
 	await service.addObject(data.obj);
 	return JSON.stringify({ success: true });
@@ -57,7 +61,20 @@ router.respond(CMD_DELETE_OBJECT, async (req) => {
 
 router.respond(CMD_UPDATE_CURSOR, async (req) => {
 	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
-	await service.updateCursor(data.peerId, data.data);
+	// Legacy command — delegate to the new ephemeral moveCursor
+	await service.moveCursor(data.peerId, data.data);
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_CURSOR_MOVE, async (req) => {
+	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
+	await service.moveCursor(data.peerId, data);
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_CURSOR_LEAVE, async (req) => {
+	const data = JSON.parse(c.decode(c.raw.utf8, req.data));
+	await service.leaveCursor(data.peerId);
 	return JSON.stringify({ success: true });
 });
 
@@ -77,9 +94,7 @@ router.respond(CMD_GET_SNAPSHOT, () => {
 });
 
 // --- Create RPC over Bare.IPC ----------------------------------------------
-console.log("[Worker] Creating RPC over Bare.IPC...");
 const rpc = new RPC(Bare.IPC, router);
-console.log("[Worker] RPC created");
 
 // --- Subscribe to snapshot updates and push as events ----------------------
 service.subscribe((snapshot) => {
@@ -91,8 +106,19 @@ service.subscribe((snapshot) => {
 	}
 });
 
-console.log("Worker: PearDraw worker ready (bare-rpc)");
+// --- Subscribe to cursor events and push as separate events ---------------
+service.onCursorUpdate((data) => {
+	try {
+		const eventType = data.type === "leave" ? EVT_CURSOR_LEAVE
+			: data.type === "remove" ? EVT_CURSOR_REMOVE
+			: EVT_CURSOR_UPDATE;
+		const evt = rpc.event(eventType);
+		evt.send(JSON.stringify(data.type === "update" ? data.cursor : data));
+	} catch (err) {
+		console.error("[Worker] Error sending cursor event:", err);
+	}
+});
 
-Bare.on("exit", (code) => console.log("[Worker] Bare exit:", code));
+
 Bare.on("uncaughtException", (err) => console.error("[Worker] Uncaught exception:", err));
 Bare.on("unhandledRejection", (err) => console.error("[Worker] Unhandled rejection:", err));

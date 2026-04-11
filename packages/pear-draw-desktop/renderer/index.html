@@ -2,268 +2,242 @@
 <html lang="en">
 
 <head>
-	<meta charset="UTF-8" />
-	<title>Pear Draw</title>
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link
-		href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-		rel="stylesheet">
-	<style>
-		:root {
-			--nav-snow: #F5F0EB;
-			--nav-carbon: #1A1A1A;
-			--nav-granite: #4A4A4A;
-			--nav-slate: #7A7A7A;
-			--nav-ash: #B0B0B0;
-			--nav-fjord: #2B4B5B;
-			--nav-aurora: #5B8A72;
-			--nav-rust: #8B4A3A;
-			--nav-ember: #B8864A;
-			--nav-frost: #E8E3DD;
-			--nav-ice: #DDD8D2;
-			--nav-basalt: #2A2A2A;
-			--nav-obsidian: #0D0D0D;
+  <meta charset="UTF-8" />
+  <title>Pear Draw</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       TOKYO MIDNIGHT CREATIVE STUDIO - Global Styles
+       ═══════════════════════════════════════════════════════════════ */
 
-			/* Instrument for display, Inter and Jetbrains for elements */
-			--font-display: "Instrument Serif", Georgia, serif;
-			--font-sans: "Inter", system-ui, sans-serif;
-			--font-mono: "JetBrains Mono", monospace;
+    :root {
+      /* Core palette */
+      --void: #050505;
+      --abyss: #0a0a0a;
+      --midnight: #111111;
+      --surface: #161616;
+      --elevated: #1e1e1e;
+      --floating: #252525;
+      
+      /* Neon accents */
+      --neon-violet: #8b5cf6;
+      --neon-cyan: #06b6d4;
+      --neon-rose: #f43f5e;
+      --neon-amber: #f59e0b;
+      --neon-emerald: #10b981;
+      
+      /* Text hierarchy */
+      --text-primary: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --text-ghost: #52525b;
+      
+      /* Utility */
+      --border: #27272a;
+      --border-glow: #3f3f46;
+      
+      /* Typography */
+      --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+      --font-sans: "Inter", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", monospace;
+      
+      /* Easings */
+      --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-cinematic: cubic-bezier(0.87, 0, 0.13, 1);
+      
+      /* Durations */
+      --dur-instant: 50ms;
+      --dur-fast: 150ms;
+      --dur-normal: 250ms;
+      --dur-slow: 400ms;
+      --dur-cinematic: 600ms;
+    }
 
-			--space-1: 4px;
-			--space-2: 8px;
-			--space-3: 16px;
-			--space-4: 24px;
-			--space-5: 48px;
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
 
-			--ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
-			--ease-aggressive: cubic-bezier(0.76, 0, 0.24, 1);
-			--ease-dramatic: cubic-bezier(0.87, 0, 0.13, 1);
-			--ease-gentle: cubic-bezier(0.25, 0.1, 0.25, 1);
-			--dur-fast: 150ms;
-			--dur-normal: 300ms;
-			--dur-slow: 500ms;
-			--dur-dramatic: 800ms;
-		}
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
 
-		*,
-		*::before,
-		*::after {
-			box-sizing: border-box;
-		}
+    body {
+      font-family: var(--font-sans);
+      background: var(--void);
+      color: var(--text-primary);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
 
-		html,
-		body {
-			margin: 0;
-			padding: 0;
-		}
+    #root {
+      width: 100%;
+      height: 100%;
+    }
 
-		body {
-			font-family: var(--font-sans);
-			background: var(--nav-obsidian);
-			color: var(--nav-snow);
-			min-height: 100vh;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-		}
+    ::selection {
+      background: var(--neon-violet);
+      color: white;
+    }
 
-		#root {
-			width: 100%;
-			height: 100%;
-		}
+    /* ═══════════════════════════════════════════════════════════════
+       Studio Keyframe Animations
+       ═══════════════════════════════════════════════════════════════ */
 
-		::selection {
-			background: var(--nav-carbon);
-			color: var(--nav-snow);
-		}
+    @keyframes studio-fade-in {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
 
+    @keyframes studio-scale-in {
+      0% { opacity: 0; transform: scale(0.9); }
+      100% { opacity: 1; transform: scale(1); }
+    }
 
-		/* Microinteractions */
-		@keyframes blur-in {
-			0% {
-				filter: blur(12px);
-				opacity: 0;
-			}
+    @keyframes studio-slide-up {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
 
-			100% {
-				filter: blur(0px);
-				opacity: 1;
-			}
-		}
+    @keyframes studio-slide-down {
+      0% { opacity: 0; transform: translateY(-20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
 
-		@keyframes blur-in-subtle {
-			0% {
-				filter: blur(6px);
-				opacity: 0;
-			}
+    @keyframes studio-blur-in {
+      0% { opacity: 0; filter: blur(20px); }
+      100% { opacity: 1; filter: blur(0); }
+    }
 
-			100% {
-				filter: blur(0px);
-				opacity: 1;
-			}
-		}
+    @keyframes studio-clip-reveal {
+      0% { clip-path: inset(0 100% 0 0); }
+      100% { clip-path: inset(0 0% 0 0); }
+    }
 
-		@keyframes wipe-down {
-			0% {
-				clip-path: inset(0 0 100% 0);
-			}
+    @keyframes studio-pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px var(--glow-color, var(--neon-violet))30; }
+      50% { box-shadow: 0 0 30px var(--glow-color, var(--neon-violet))50, 0 0 60px var(--glow-color, var(--neon-violet))20; }
+    }
 
-			100% {
-				clip-path: inset(0 0 0% 0);
-			}
-		}
+    @keyframes studio-breathe {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
 
-		@keyframes wipe-up {
-			0% {
-				clip-path: inset(100% 0 0 0);
-			}
+    @keyframes studio-grid-flow {
+      0% { background-position: 0 0; }
+      100% { background-position: 40px 40px; }
+    }
 
-			100% {
-				clip-path: inset(0% 0 0 0);
-			}
-		}
+    @keyframes studio-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
 
-		@keyframes wipe-left {
-			0% {
-				clip-path: inset(0 100% 0 0);
-			}
+    @keyframes studio-shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
 
-			100% {
-				clip-path: inset(0 0% 0 0);
-			}
-		}
+    @keyframes studio-bounce-subtle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
 
-		@keyframes wipe-right {
-			0% {
-				clip-path: inset(0 0 0 100%);
-			}
+    @keyframes studio-spin-slow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
 
-			100% {
-				clip-path: inset(0 0 0 0%);
-			}
-		}
+    @keyframes studio-cursor-trail {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.5); }
+    }
 
-		@keyframes slide-in-left {
-			0% { opacity: 0; transform: translateX(-20px); }
-			100% { opacity: 1; transform: translateX(0); }
-		}
+    /* ═══════════════════════════════════════════════════════════════
+       Canvas Grid Pattern
+       ═══════════════════════════════════════════════════════════════ */
 
-		@keyframes border-draw {
-			0% {
-				stroke-dashoffset: 800;
-			}
+    .studio-canvas-grid {
+      background-color: var(--void);
+      background-image: 
+        radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0);
+      background-size: 32px 32px;
+      background-position: center center;
+    }
 
-			100% {
-				stroke-dashoffset: 0;
-			}
-		}
+    .studio-canvas-grid-dense {
+      background-color: var(--void);
+      background-image: 
+        radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0);
+      background-size: 32px 32px;
+      background-position: center center;
+    }
 
-		@keyframes dot-grid-pulse {
+    /* ═══════════════════════════════════════════════════════════════
+       Form Elements
+       ═══════════════════════════════════════════════════════════════ */
 
-			0%,
-			100% {
-				opacity: 0.15;
-			}
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+      width: 100%;
+    }
 
-			50% {
-				opacity: 0.25;
-			}
-		}
+    input[type="range"]:focus {
+      outline: none;
+    }
 
-		@keyframes loading-bar {
-			0% {
-				width: 0%;
-			}
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
 
-			60% {
-				width: 70%;
-			}
+    ::-webkit-scrollbar-track {
+      background: var(--abyss);
+    }
 
-			100% {
-				width: 100%;
-			}
-		}
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
 
-		/* Inputs */
-		input[type="range"] {
-			-webkit-appearance: none;
-			appearance: none;
-			background: transparent;
-			cursor: pointer;
-			width: 100%;
-		}
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-glow);
+    }
 
-		input[type="range"]::-webkit-slider-track {
-			height: 1px;
-			background: var(--nav-granite);
-			border-radius: 0;
-		}
+    /* Firefox scrollbar */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--abyss);
+    }
 
-		input[type="range"]::-webkit-slider-thumb {
-			-webkit-appearance: none;
-			appearance: none;
-			width: 10px;
-			height: 10px;
-			background: var(--nav-snow);
-			border: 1px solid var(--nav-carbon);
-			border-radius: 0;
-			margin-top: -5px;
-			transition: background var(--dur-fast) var(--ease-premium);
-		}
+    /* ═══════════════════════════════════════════════════════════════
+       Reduced Motion Support
+       ═══════════════════════════════════════════════════════════════ */
 
-		input[type="range"]::-webkit-slider-thumb:hover {
-			background: var(--nav-aurora);
-			border-color: var(--nav-aurora);
-		}
-
-		input[type="range"]::-moz-range-track {
-			height: 1px;
-			background: var(--nav-granite);
-			border-radius: 0;
-			border: none;
-		}
-
-		input[type="range"]::-moz-range-thumb {
-			width: 10px;
-			height: 10px;
-			background: var(--nav-snow);
-			border: 1px solid var(--nav-carbon);
-			border-radius: 0;
-			transition: background var(--dur-fast) var(--ease-premium);
-		}
-
-		input[type="range"]::-moz-range-thumb:hover {
-			background: var(--nav-aurora);
-			border-color: var(--nav-aurora);
-		}
-
-		::-webkit-scrollbar {
-			width: 4px;
-		}
-
-		::-webkit-scrollbar-track {
-			background: var(--nav-obsidian);
-		}
-
-		::-webkit-scrollbar-thumb {
-			background: var(--nav-granite);
-		}
-
-		::-webkit-scrollbar-thumb:hover {
-			background: var(--nav-ash);
-		}
-
-		.nav-dot-grid {
-			background-image: radial-gradient(circle, var(--nav-granite) 0.5px, transparent 0.5px);
-			background-size: 24px 24px;
-			background-position: 12px 12px;
-		}
-	</style>
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 
 <body>
-	<div id="root"></div>
-	<script type="module" src="./index.jsx"></script>
+  <div id="root"></div>
+  <script type="module" src="./index.jsx"></script>
 </body>
 
 </html>

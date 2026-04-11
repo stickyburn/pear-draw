@@ -1,9 +1,10 @@
 import { createSignal, createEffect } from "solid-js";
 import * as fabric from "fabric";
+import { createShape, updateShape, finalizeShape } from "../lib/fabric-shapes.mjs";
 
 /**
  * Canvas Tools Hook - Reusable drawing and interaction logic
- * Handles: freehand drawing, shape creation (rect, circle, etc.), and selection
+ * Handles: freehand drawing, shape creation (rect, circle, text), and selection
  */
 export function useCanvasTools(getCanvas, options = {}) {
 	const [activeTool, setActiveTool] = createSignal("freehand");
@@ -78,152 +79,6 @@ export function useCanvasTools(getCanvas, options = {}) {
 	};
 
 	/**
-	 * Create a shape based on tool type
-	 */
-	const createShape = (type, start, current) => {
-		const color = strokeColor();
-		const width = strokeWidth();
-
-		switch (type) {
-			case "rect": {
-				const left = Math.min(start.x, current.x);
-				const top = Math.min(start.y, current.y);
-				const rectWidth = Math.abs(current.x - start.x);
-				const rectHeight = Math.abs(current.y - start.y);
-
-				return new fabric.Rect({
-					left,
-					top,
-					width: rectWidth,
-					height: rectHeight,
-					fill: "transparent",
-					stroke: color,
-					strokeWidth: width,
-					selectable: false,
-					evented: false,
-					originX: "left",
-					originY: "top",
-				});
-			}
-			case "circle": {
-				const radius = Math.sqrt(
-					Math.pow(current.x - start.x, 2) + Math.pow(current.y - start.y, 2),
-				);
-
-				return new fabric.Circle({
-					left: start.x - radius,
-					top: start.y - radius,
-					radius: radius,
-					fill: "transparent",
-					stroke: color,
-					strokeWidth: width,
-					selectable: false,
-					evented: false,
-					originX: "left",
-					originY: "top",
-				});
-			}
-			case "text": {
-				// For text, we create at click position with initial small size
-				// User will edit it after creation
-				return new fabric.Textbox("Double click to edit", {
-					left: start.x,
-					top: start.y,
-					width: 200,
-					fontSize: 20,
-					fill: color,
-					stroke: null,
-					strokeWidth: 0,
-					selectable: false,
-					evented: false,
-					originX: "left",
-					originY: "top",
-					editable: true,
-				});
-			}
-			default:
-				return null;
-		}
-	};
-
-	/**
-	 * Update shape during drag
-	 */
-	const updateShape = (type, shape, start, current) => {
-		if (!shape) return;
-
-		switch (type) {
-			case "rect": {
-				const left = Math.min(start.x, current.x);
-				const top = Math.min(start.y, current.y);
-				const width = Math.abs(current.x - start.x);
-				const height = Math.abs(current.y - start.y);
-
-				shape.set({
-					left,
-					top,
-					width,
-					height,
-				});
-				break;
-			}
-			case "circle": {
-				const radius = Math.sqrt(
-					Math.pow(current.x - start.x, 2) + Math.pow(current.y - start.y, 2),
-				);
-				shape.set({
-					left: start.x - radius,
-					top: start.y - radius,
-					radius,
-				});
-				break;
-			}
-			case "text": {
-				// Text doesn't update during drag - it's placed at initial click
-				break;
-			}
-		}
-	};
-
-	/**
-	 * Finalize shape after creation - makes it selectable and switches to select tool
-	 */
-	const finalizeShape = (shape, onShapeCreated) => {
-		if (!shape) return null;
-
-		const canvas = getCanvasInstance();
-		if (!canvas) return null;
-
-		// Make it selectable
-		shape.set({
-			selectable: true,
-			evented: true,
-		});
-
-		// Call the callback with the shape - this returns the metadata with the id
-		const meta = onShapeCreated ? onShapeCreated(shape) : null;
-
-		// Apply metadata if provided (id, author, createdAt are already set by setObjectMeta)
-		// Note: setObjectMeta already sets these, but we ensure they're on the shape object
-		if (meta) {
-			// Use fabric's set method for proper property management
-			shape.set({
-				id: meta.id,
-				author: meta.author,
-				createdAt: meta.createdAt,
-			});
-		}
-
-		// Switch to select tool after creating a shape
-		setTool("select");
-
-		// Select the newly created shape
-		canvas.setActiveObject(shape);
-
-		return shape;
-	};
-
-	/**
 	 * Apply tool settings to canvas
 	 */
 	const applyToolSettings = (toolId) => {
@@ -279,7 +134,7 @@ export function useCanvasTools(getCanvas, options = {}) {
 			// Start drawing new shape
 			isDrawing = true;
 			drawStart = getPointer(e);
-			tempObject = createShape(toolConfig.shapeType, drawStart, drawStart);
+			tempObject = createShape(toolConfig.shapeType, drawStart, drawStart, strokeColor(), strokeWidth());
 
 			if (tempObject) {
 				canvas.add(tempObject);
@@ -329,7 +184,9 @@ export function useCanvasTools(getCanvas, options = {}) {
 			}
 
 			if (isValid) {
-				finalizeShape(tempObject, onShapeCreated);
+				finalizeShape(canvas, tempObject, onShapeCreated);
+				// Switch to select tool after creating a shape
+				setTool("select");
 			} else {
 				canvas?.remove(tempObject);
 			}

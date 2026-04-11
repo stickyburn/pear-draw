@@ -1,14 +1,13 @@
 import Swal from "sweetalert2";
-import { colors } from "../styles/common.jsx";
+import { studio } from "../styles/index.jsx";
 
 export const swal = Swal.mixin({
-	background: colors.carbon,
-	color: colors.snow,
-	confirmButtonColor: colors.snow,
-	cancelButtonColor: colors.granite,
+	background: studio.midnight,
+	color: studio.text.primary,
+	confirmButtonColor: studio.neon.violet,
+	cancelButtonColor: studio.border,
 	buttonsStyling: true,
-	width: 480,
-	heightAuto: false,
+	width: 520,
 });
 
 export const toast = swal.mixin({

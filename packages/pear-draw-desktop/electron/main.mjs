@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +23,6 @@ let pear = null;
 // Single dynamic handler for ALL worker IPC
 // Registered at startup - handlers are always ready before workers spawn
 ipcMain.handle("pear:worker:writeIPC", async (_evt, { specifier, data }) => {
-	console.log("[Main] writeWorkerIPC called for:", specifier, "workers:", [...workers.keys()]);
 	const worker = workers.get(specifier);
 	if (!worker) {
 		throw new Error(`Worker ${specifier} not running`);
@@ -46,6 +46,16 @@ cmd.parse(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2));
 
 const pearStore = cmd.flags.storage;
 const updates = cmd.flags.updates;
+
+// If custom storage is provided, redirect Electron's metadata to prevent locking conflicts
+if (pearStore) {
+	const userDataPath = path.join(pearStore, "electron-metadata");
+	// Ensure the directory exists before Electron tries to use it
+	if (!fs.existsSync(userDataPath)) {
+		fs.mkdirSync(userDataPath, { recursive: true });
+	}
+	app.setPath("userData", userDataPath);
+}
 
 function getPear() {
 	if (pear) return pear;
@@ -90,7 +100,6 @@ function sendToAll(name, data) {
 }
 
 async function getWorker(specifier) {
-	console.log("[Main] getWorker called for:", specifier);
 	if (workers.has(specifier)) return workers.get(specifier);
 	const pearRuntime = getPear();
 
@@ -105,11 +114,10 @@ async function getWorker(specifier) {
 	}
 
 	workers.set(specifier, worker);
-	console.log("[Main] Worker added to map:", specifier);
 	
-	// Capture worker stdout/stderr for debugging
+	// Pipe worker output to main process logs
 	worker.stdout?.on("data", (data) => {
-		console.log("[Worker stdout]", data.toString().trim());
+		// Suppress worker stdout in production
 	});
 	worker.stderr?.on("data", (data) => {
 		console.error("[Worker stderr]", data.toString().trim());
@@ -119,7 +127,6 @@ async function getWorker(specifier) {
 		sendToAll(`pear:worker:ipc:${specifier}`, data);
 	});
 	worker.once("exit", (code) => {
-		console.log("[Main] Worker exited:", specifier, "code:", code);
 		app.removeListener("before-quit", onBeforeQuit);
 		sendToAll(`pear:worker:exit:${specifier}`, code);
 		workers.delete(specifier);
@@ -157,13 +164,11 @@ async function createWindow() {
 }
 
 ipcMain.handle("pear:startWorker", async (_evt, filename) => {
-	console.log("[Main] startWorker handler called for:", filename);
 	await getWorker(filename);
-	console.log("[Main] startWorker handler completed for:", filename);
 	return true;
 });
 
-const lock = app.requestSingleInstanceLock();
+const lock = pearStore ? true : app.requestSingleInstanceLock();
 
 if (!lock) {
 	app.quit();

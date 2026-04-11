@@ -1,4 +1,5 @@
-export { ConnectionStatus } from "./connection-status.jsx";
-export { CursorOverlay } from "./cursor-overlay.jsx";
-export { FloatingActionButton } from "./floating-action-button.jsx";
-export { Toolbar } from "./toolbar.jsx";
+// Studio Components - Tokyo Midnight Creative Studio
+export { StudioToolbar } from "./studio-toolbar.jsx";
+export { StudioStatus } from "./studio-status.jsx";
+export { StudioCursors } from "./studio-cursors.jsx";
+export { StudioFab, showStudioConnectionModal } from "./studio-connection.jsx";
