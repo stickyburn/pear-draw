@@ -1,6 +1,10 @@
 import { createSignal, createEffect } from "solid-js";
 import * as fabric from "fabric";
-import { createShape, updateShape, finalizeShape } from "../lib/fabric-shapes.mjs";
+import {
+	createShape,
+	updateShape,
+	finalizeShape,
+} from "../lib/fabric-shapes.mjs";
 
 /**
  * Canvas Tools Hook - Reusable drawing and interaction logic
@@ -8,7 +12,9 @@ import { createShape, updateShape, finalizeShape } from "../lib/fabric-shapes.mj
  */
 export function useCanvasTools(getCanvas, options = {}) {
 	const [activeTool, setActiveTool] = createSignal("freehand");
-	const [strokeColor, setStrokeColor] = createSignal(options.strokeColor || "#f5f0eb");
+	const [strokeColor, setStrokeColor] = createSignal(
+		options.strokeColor || "#f5f0eb",
+	);
 	const [strokeWidth, setStrokeWidth] = createSignal(options.strokeWidth || 5);
 
 	// Drawing state - these need to be tracked per-instance
@@ -134,7 +140,13 @@ export function useCanvasTools(getCanvas, options = {}) {
 			// Start drawing new shape
 			isDrawing = true;
 			drawStart = getPointer(e);
-			tempObject = createShape(toolConfig.shapeType, drawStart, drawStart, strokeColor(), strokeWidth());
+			tempObject = createShape(
+				toolConfig.shapeType,
+				drawStart,
+				drawStart,
+				strokeColor(),
+				strokeWidth(),
+			);
 
 			if (tempObject) {
 				canvas.add(tempObject);

@@ -15,51 +15,57 @@ import { swal } from "./swal.jsx";
  * @param {Function} opts.onError     - async function receiving the error (optional, defaults to error swal)
  * @returns {Promise<any>} The result of the action, or null if cancelled
  */
-export async function modalFlow({ inputConfig, action, loadingConfig, onSuccess, onError }) {
-  const result = await swal.fire(inputConfig);
+export async function modalFlow({
+	inputConfig,
+	action,
+	loadingConfig,
+	onSuccess,
+	onError,
+}) {
+	const result = await swal.fire(inputConfig);
 
-  if (!result.isConfirmed) return null;
+	if (!result.isConfirmed) return null;
 
-  // Show loading
-  if (loadingConfig) {
-    swal.fire(loadingConfig);
-  }
+	// Show loading
+	if (loadingConfig) {
+		swal.fire(loadingConfig);
+	}
 
-  try {
-    const actionResult = await action(result.value || result);
+	try {
+		const actionResult = await action(result.value || result);
 
-    // Close loading
-    await swal.close();
+		// Close loading
+		await swal.close();
 
-    if (onSuccess) {
-      await onSuccess(actionResult);
-    }
+		if (onSuccess) {
+			await onSuccess(actionResult);
+		}
 
-    return actionResult;
-  } catch (err) {
-    // Close loading
-    await swal.close();
+		return actionResult;
+	} catch (err) {
+		// Close loading
+		await swal.close();
 
-    if (onError) {
-      await onError(err);
-    } else {
-      await swal.fire({
-        title: "Error",
-        text: err.message || "Something went wrong",
-        icon: "error",
-        customClass: { popup: "studio-modal" },
-      });
-    }
+		if (onError) {
+			await onError(err);
+		} else {
+			await swal.fire({
+				title: "Error",
+				text: err.message || "Something went wrong",
+				icon: "error",
+				customClass: { popup: "studio-modal" },
+			});
+		}
 
-    throw err;
-  }
+		throw err;
+	}
 }
 
 /**
  * Create a loading indicator HTML string using Studio theme.
  */
 export function loadingHtml(message = "Processing...", studio) {
-  return `
+	return `
     <div style="padding: 24px 0;">
       <p style="font-family: Inter; font-size: 14px; color: ${studio.text.primary}; margin-bottom: 16px;">${message}</p>
       <div style="width: 100%; height: 2px; background: ${studio.border}; border-radius: 1px; overflow: hidden;">
