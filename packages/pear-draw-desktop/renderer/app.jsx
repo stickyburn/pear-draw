@@ -9,17 +9,16 @@ import {
 
 // Studio components
 import {
-	StudioToolbar,
-	StudioStatus,
 	StudioCursors,
 	StudioFab,
+	StudioStatus,
+	StudioToolbar,
 	showStudioConnectionModal,
 } from "./components/index.jsx";
-
-// Hooks
-import { usePearDrawSession } from "./hooks/use-pear-draw-session.jsx";
 import { useCanvasTools } from "./hooks/use-canvas-tools.jsx";
 import { useFocusMode } from "./hooks/use-focus-mode.js";
+// Hooks
+import { usePearDrawSession } from "./hooks/use-pear-draw-session.jsx";
 
 // Fabric utilities
 import {
@@ -30,12 +29,12 @@ import {
 
 // Theme
 import {
-	studio,
-	strokeColors,
-	swal2Theme,
-	keyframes,
 	durations,
 	easings,
+	keyframes,
+	strokeColors,
+	studio,
+	swal2Theme,
 } from "./styles/index.jsx";
 
 // ─────────────────────────────────────────────────────────────────
@@ -69,10 +68,7 @@ export function App() {
 	const canOpenConnectionMenu = () =>
 		session().status === "idle" || session().status === "error";
 
-	const { isFocusMode, resetIdleTimer } = useFocusMode(
-		isConnected,
-		canOpenConnectionMenu,
-	);
+	const { isFocusMode } = useFocusMode(isConnected, canOpenConnectionMenu);
 
 	const {
 		activeTool,
@@ -245,7 +241,7 @@ export function App() {
 
 				localObjects.forEach((localObj) => {
 					const id = localObj.id;
-					if (id && id.startsWith("object:") && !remoteIds.has(id)) {
+					if (id?.startsWith("object:") && !remoteIds.has(id)) {
 						fabricCanvas.remove(localObj);
 					}
 				});
@@ -272,7 +268,7 @@ export function App() {
 
 	// Update dimensions on connection change
 	createEffect(() => {
-		const connected = isConnected();
+		const _connected = isConnected();
 		const timeout = setTimeout(() => {
 			if (fabricCanvas && containerEl) {
 				const w = containerEl.clientWidth;

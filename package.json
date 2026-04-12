@@ -8,7 +8,6 @@
 		"host": "pnpm --filter pear-draw-desktop run host",
 		"guest": "pnpm --filter pear-draw-desktop run guest",
 		"lint": "pnpm --filter pear-draw-desktop run lint",
-		"format": "pnpm --filter pear-draw-desktop run format",
 		"package": "pnpm --filter pear-draw-desktop run package",
 		"make:darwin": "pnpm --filter pear-draw-desktop run make:darwin",
 		"make:win32": "pnpm --filter pear-draw-desktop run make:win32",

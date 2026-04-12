@@ -1,14 +1,14 @@
 import { createSignal } from "solid-js";
+import { modalFlow } from "../lib/modal-flow.jsx";
 import { swal, toast } from "../lib/swal.jsx";
 import {
-	studio,
-	glass,
-	easings,
 	durations,
+	easings,
+	glass,
 	modalStyles,
 	shadows,
+	studio,
 } from "../styles/index.jsx";
-import { modalFlow } from "../lib/modal-flow.jsx";
 
 export function StudioStatus(props) {
 	const [isOpen, setIsOpen] = createSignal(false);
@@ -164,6 +164,7 @@ export function StudioStatus(props) {
 						"margin-left": "4px",
 					}}
 				>
+					<title>Chevron</title>
 					<path d="m6 9 6 6 6-6" />
 				</svg>
 			</button>
@@ -248,6 +249,8 @@ export function StudioStatus(props) {
 								stroke-linecap="round"
 								stroke-linejoin="round"
 							>
+								<title>Disconnect</title>
+								<title>Copy</title>
 								<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
 								<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
 							</svg>
@@ -289,6 +292,8 @@ export function StudioStatus(props) {
 							stroke-linecap="round"
 							stroke-linejoin="round"
 						>
+							<title>Disconnect</title>
+							<title>Delete</title>
 							<path d="M3 6h18" />
 							<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
 							<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -334,6 +339,7 @@ export function StudioStatus(props) {
 							stroke-linecap="round"
 							stroke-linejoin="round"
 						>
+							<title>Disconnect</title>
 							<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
 							<polyline points="16 17 21 12 16 7" />
 							<line x1="21" y1="12" x2="9" y2="12" />

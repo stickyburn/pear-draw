@@ -1,5 +1,5 @@
 import { createEffect, createSignal, For, Show } from "solid-js";
-import { studio, hashToPeerColor } from "../styles/index.jsx";
+import { hashToPeerColor, studio } from "../styles/index.jsx";
 
 // ─────────────────────────────────────────────────────────────────
 // Cursor Overlay — renders remote peer cursors with EMA-smoothed
@@ -89,7 +89,7 @@ export function StudioCursors(props) {
 }
 
 function StudioCursor(props) {
-	const cursorRef = null;
+	let cursorRef;
 	const [rippleKey, setRippleKey] = createSignal(0);
 	const [showRipple, setShowRipple] = createSignal(false);
 	let lastClicking = false;
@@ -125,7 +125,7 @@ function StudioCursor(props) {
 
 	return (
 		<div
-			ref={cursorRef}
+			ref={(el) => (cursorRef = el)}
 			style={{
 				position: "absolute",
 				top: "0",

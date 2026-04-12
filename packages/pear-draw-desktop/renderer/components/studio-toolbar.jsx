@@ -1,11 +1,11 @@
 import { createSignal, For } from "solid-js";
 import {
-	studio,
-	glass,
-	easings,
 	durations,
+	easings,
+	glass,
 	shadows,
 	strokeColors,
+	studio,
 } from "../styles/index.jsx";
 
 const tools = [
@@ -25,6 +25,7 @@ const tools = [
 				stroke-linejoin="round"
 				{...props}
 			>
+				<title>Freehand</title>
 				<path d="m12 19 7-7 3 3-7 7-3-3z" />
 				<path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
 				<path d="m2 2 7.6 7.6" />
@@ -48,6 +49,7 @@ const tools = [
 				stroke-linejoin="round"
 				{...props}
 			>
+				<title>Rectangle</title>
 				<rect width="18" height="18" x="3" y="3" rx="2" />
 			</svg>
 		),
@@ -68,6 +70,7 @@ const tools = [
 				stroke-linejoin="round"
 				{...props}
 			>
+				<title>Circle</title>
 				<circle cx="12" cy="12" r="10" />
 			</svg>
 		),
@@ -88,6 +91,7 @@ const tools = [
 				stroke-linejoin="round"
 				{...props}
 			>
+				<title>Text</title>
 				<path d="M4 7V4h16v3" />
 				<path d="M9 20h6" />
 				<path d="M12 4v16" />
@@ -110,6 +114,7 @@ const tools = [
 				stroke-linejoin="round"
 				{...props}
 			>
+				<title>Select</title>
 				<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
 				<path d="M13 13l6 6" />
 			</svg>
@@ -131,6 +136,7 @@ const tools = [
 				stroke-linejoin="round"
 				{...props}
 			>
+				<title>Focus Mode</title>
 				<path d="M8 3H5a2 2 0 0 0-2 2v3" />
 				<path d="M21 8V5a2 2 0 0 0-2-2h-3" />
 				<path d="M3 16v3a2 2 0 0 0 2 2h3" />
@@ -287,6 +293,7 @@ export function StudioToolbar(props) {
 						stroke-linecap="round"
 						stroke-linejoin="round"
 					>
+						<title>Delete</title>
 						<path d="M3 6h18" />
 						<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
 						<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />

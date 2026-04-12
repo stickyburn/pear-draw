@@ -1,9 +1,9 @@
-import { createSignal, createEffect } from "solid-js";
 import * as fabric from "fabric";
+import { createEffect, createSignal } from "solid-js";
 import {
 	createShape,
-	updateShape,
 	finalizeShape,
+	updateShape,
 } from "../lib/fabric-shapes.mjs";
 
 /**

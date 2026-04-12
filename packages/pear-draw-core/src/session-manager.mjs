@@ -1,14 +1,11 @@
 // ─────────────────────────────────────────────────────────────────
 // Session Manager — Starts, joins, and disconnects P2P sessions
-// using Autopass over Corestore. Handles the full lifecycle:
-// creating/opening stores, pairing, and cleaning up on disconnect.
-//
-// Does NOT set session status to "ready" — that's the caller's
-// responsibility after hydration is complete.
+// using Autopass over Corestore.
 // ─────────────────────────────────────────────────────────────────
 
 import Autopass from "autopass";
 import Corestore from "corestore";
+import fs from "bare-fs";
 
 const DEFAULT_SESSION = {
 	status: "idle",
@@ -42,9 +39,14 @@ export class SessionManager {
 		this.onUpdate?.(this.#session);
 	}
 
-	async #createStore(profileName) {
+	async #createStore(profileName, { clean = false } = {}) {
 		const safe = profileName.trim().replace(/[^a-zA-Z0-9_-]/g, "-") || "peer";
-		return new Corestore(`${this.#storageRoot}/pear-draw/${safe}`);
+		const dir = `${this.#storageRoot}/pear-draw/${safe}`;
+		if (clean) {
+			await this.#closeCurrent();
+			try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+		}
+		return new Corestore(dir);
 	}
 
 	async #closeCurrent() {
@@ -56,18 +58,9 @@ export class SessionManager {
 		await currentStore?.close?.().catch(() => {});
 	}
 
-	/**
-	 * Prepare a host session. Creates Autopass + Corestore, generates invite.
-	 * Returns { pass, invite } — caller must attach listeners and set "ready".
-	 */
 	async prepareHostSession(profileName) {
 		try {
-			this.#setSession({
-				status: "connecting",
-				mode: "host",
-				invite: "",
-				error: "",
-			});
+			this.#setSession({ status: "connecting", mode: "host", invite: "", error: "" });
 			await this.#closeCurrent();
 
 			const store = await this.#createStore(profileName);
@@ -79,85 +72,53 @@ export class SessionManager {
 			this.#store = store;
 			return invite;
 		} catch (err) {
-			this.#setSession({
-				status: "error",
-				mode: "host",
-				invite: "",
-				error: err.message || "Failed to start session",
-			});
+			this.#setSession({ status: "error", mode: "host", invite: "", error: err.message || "Failed to start session" });
 			throw err;
 		}
 	}
 
-	/**
-	 * Prepare a join session. Pairs with host via invite code.
-	 * Returns nothing — caller must attach listeners and set "ready".
-	 */
 	async prepareJoinSession(profileName, inviteCode) {
 		const invite = inviteCode.trim();
 		if (!invite) {
-			this.#setSession({
-				status: "error",
-				mode: "guest",
-				invite: "",
-				error: "Paste an invite code",
-			});
+			this.#setSession({ status: "error", mode: "guest", invite: "", error: "Paste an invite code" });
 			throw new Error("Invite code not entered");
 		}
 
 		let pair = null;
 		try {
-			this.#setSession({
-				status: "connecting",
-				mode: "guest",
-				invite: "",
-				error: "",
-			});
-			await this.#closeCurrent();
+			this.#setSession({ status: "connecting", mode: "guest", invite: "", error: "" });
 
-			const store = await this.#createStore(profileName);
-
+			// Guest must start from a clean store — stale Autopass pairing
+			// data from a previous session conflicts with the new invite.
+			const store = await this.#createStore(profileName, { clean: true });
 			pair = Autopass.pair(store, invite);
 
 			const timeout = new Promise((_, reject) =>
 				setTimeout(() => reject(new Error("Pairing timed out")), 15000),
 			);
 
-			console.log("[SessionManager] Waiting for pair to finish...");
 			const pass = await Promise.race([pair.finished(), timeout]);
-			console.log("[SessionManager] Pair finished, awaiting pass.ready()...");
 			await pass.ready();
-			console.log("[SessionManager] Pass ready, storing...");
 
 			this.#pass = pass;
 			this.#store = store;
-			console.log("[SessionManager] prepareJoinSession complete");
 		} catch (err) {
-			console.error("[SessionManager] prepareJoinSession error:", err.message);
 			await pair?.close?.().catch(() => {});
-			this.#setSession({
-				status: "error",
-				mode: "guest",
-				invite: "",
-				error: err.message || "Failed to join session",
-			});
+			this.#setSession({ status: "error", mode: "guest", invite: "", error: err.message || "Failed to join session" });
 			throw err;
 		}
 	}
 
-	/** Set session status to "ready" — called after hydration completes. */
 	setReady(mode, invite = "") {
 		this.#setSession({ status: "ready", mode, invite, error: "" });
 	}
 
-	/** Disconnect and reset to idle. */
 	async disconnect() {
 		await this.#closeCurrent();
 		this.#session = { ...DEFAULT_SESSION };
 		this.onUpdate?.(this.#session);
 	}
 
-	/** Dispose — clean up everything. */
 	async dispose() {
 		await this.#closeCurrent();
 		this.#session = { ...DEFAULT_SESSION };

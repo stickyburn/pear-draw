@@ -101,14 +101,14 @@ export class CursorInterpolator {
 		const now = performance.now();
 		let changed = false;
 
-		for (const [peerId, peer] of this.#peers) {
+		for (const [_peerId, peer] of this.#peers) {
 			// EMA smoothing
 			peer.smoothX = peer.smoothX + EMA_ALPHA * (peer.rawX - peer.smoothX);
 			peer.smoothY = peer.smoothY + EMA_ALPHA * (peer.rawY - peer.smoothY);
 
 			// Idle detection
 			const elapsed = now - peer.lastUpdateMs;
-			const wasIdle = peer.idle;
+			const _wasIdle = peer.idle;
 			peer.idle = elapsed > IDLE_TIMEOUT_MS;
 
 			// Appear animation: after 300ms, mark as fully appeared

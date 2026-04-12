@@ -1,8 +1,8 @@
 import { createSignal } from "solid-js";
-import { swal, toast } from "../lib/swal.jsx";
-import { studio, modalStyles, durations, easings } from "../styles/index.jsx";
 import { escapeHtml } from "../lib/escape-html.mjs";
-import { modalFlow, loadingHtml } from "../lib/modal-flow.jsx";
+import { loadingHtml, modalFlow } from "../lib/modal-flow.jsx";
+import { swal, toast } from "../lib/swal.jsx";
+import { durations, easings, modalStyles, studio } from "../styles/index.jsx";
 
 // ═════════════════════════════════════════════════════════════════
 // Studio Modal Layout Templates
@@ -178,6 +178,7 @@ export function StudioFab(props) {
 
 	return (
 		<button
+			type="button"
 			onClick={() =>
 				showStudioConnectionModal(
 					props.onStartHost,
@@ -235,6 +236,7 @@ export function StudioFab(props) {
 					transform: isHovered() ? "rotate(90deg)" : "rotate(0)",
 				}}
 			>
+				<title>Open connection menu</title>
 				<path d="M12 5v14M5 12h14" />
 			</svg>
 		</button>

@@ -224,22 +224,17 @@ class PearDrawService {
 	// ─── Internal: Attach to Autopass ────────────────────────────
 
 	async #attach(pass, mode, invite = "") {
-		console.log("[PearDrawService] #attach starting...");
 		this.#pass = pass;
 
 		// Register update listener BEFORE hydration so we don't miss
 		// any changes that arrive while we're reading initial state
-		console.log("[PearDrawService] Registering update listener...");
 		pass.on("update", () => this.#hydrateWithUpdate(pass));
 
 		// Hydrate initial state from existing records
-		console.log("[PearDrawService] Hydrating initial state...");
 		await this.#hydrateInitial(pass);
 
 		// NOW set session to "ready" — listeners active, data loaded
-		console.log("[PearDrawService] Setting session to ready...");
 		this.#sessionManager.setReady(mode, invite);
-		console.log("[PearDrawService] #attach complete");
 	}
 
 	/**
@@ -247,9 +242,7 @@ class PearDrawService {
 	 * all existing objects and cursor positions.
 	 */
 	async #hydrateInitial(pass) {
-		console.log("[PearDrawService] #hydrateInitial: starting list().toArray()...");
 		const records = await pass.list().toArray();
-		console.log("[PearDrawService] #hydrateInitial: got", records.length, "records");
 		const objectRecords = [];
 
 		for (const rec of records) {

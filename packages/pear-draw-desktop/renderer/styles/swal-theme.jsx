@@ -3,7 +3,7 @@
 // Extracted from studio-theme.jsx for maintainability.
 // ─────────────────────────────────────────────────────────────────
 
-import { studio, fonts } from "./studio-theme.jsx";
+import { fonts, studio } from "./studio-theme.jsx";
 
 export const swal2Theme = `
   .studio-modal {
