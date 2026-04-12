@@ -10,7 +10,7 @@
 	"main": "electron/main.mjs",
 	"private": true,
 	"scripts": {
-		"dev": "concurrently \"vite\" \"PEAR_DEV_SERVER_URL=http://localhost:3000 electron-forge start -- --no-updates\"",
+		"dev": "concurrently \"vite\" \"PEAR_DEV_SERVER_URL=http://localhost:3000 electron-forge start -- --storage /tmp/pear-draw-dev --no-updates\"",
 		"build": "vite build",
 		"start": "pnpm run build && electron-forge start -- --no-updates",
 		"host": "pnpm run build && electron . --storage /tmp/pear-draw-host --no-updates",

@@ -1,273 +1,328 @@
 // ─────────────────────────────────────────────────────────────────
 // PearDrawService — Orchestrator for P2P collaborative drawing.
-// Composes SessionManager, ObjectStore, and CursorManager,
-// wiring them to Autopass for P2P sync.
+// Composes SessionManager, ObjectStore, and CursorManager.
 //
 // Architecture:
+//   - SessionManager manages P2P session lifecycle (Autopass/Corestore)
+//   - ObjectStore is a pure data store for canvas objects (no events)
+//   - CursorManager is a pure data store for cursor positions (no events)
+//   - PearDrawService is the SOLE emitter: all state changes flow
+//     through #emit() which notifies listeners via EVT_SNAPSHOT
+//   - Cursor events are emitted via separate onCursorUpdate listeners
+//
+// Sync strategy:
 //   - Objects are written to Autopass for durable P2P sync
-//   - Cursor positions are ephemeral: broadcast via Autopass
-//     update events but NOT persisted to the store. This avoids
-//     bloating the hypercore with transient position data while
-//     still propagating cursors to remote peers in real-time.
+//   - Cursor positions are ephemeral: written to Autopass for P2P
+//     propagation but loaded from Autopass records on hydrate
+//   - Trail data (EMA smoothing, age) is computed purely in the
+//     renderer's CursorInterpolator — never stored or synced
 // ─────────────────────────────────────────────────────────────────
 
-import { SessionManager } from "./session-manager.mjs";
-import { ObjectStore } from "./object-store.mjs";
 import { CursorManager } from "./cursor-manager.mjs";
+import { ObjectStore } from "./object-store.mjs";
+import { SessionManager } from "./session-manager.mjs";
 
 class PearDrawService {
-  #storageRoot;
-  #sessionManager;
-  #objectStore;
-  #cursorManager;
-  #listeners = new Set();
-  #pass = null; // active Autopass instance (set during attach)
+	#storageRoot;
+	#sessionManager;
+	#objectStore;
+	#cursorManager;
+	#listeners = new Set();
+	#cursorListeners = new Set();
+	#pass = null; // active Autopass instance (set during attach)
 
-  constructor(storageRoot) {
-    this.#storageRoot = storageRoot;
-    this.#sessionManager = new SessionManager(storageRoot, () => this.#emit());
-    this.#objectStore = new ObjectStore();
-    this.#cursorManager = new CursorManager();
-  }
+	constructor(storageRoot) {
+		this.#storageRoot = storageRoot;
+		this.#sessionManager = new SessionManager(storageRoot, () => this.#emit());
+		this.#objectStore = new ObjectStore();
+		this.#cursorManager = new CursorManager();
+	}
 
-  // ─── Snapshot ─────────────────────────────────────────────────
+	// ─── Snapshot ─────────────────────────────────────────────────
 
-  getSnapshot() {
-    return {
-      session: this.#sessionManager.session,
-      objects: this.#objectStore.getObjects(),
-    };
-  }
+	getSnapshot() {
+		return {
+			session: this.#sessionManager.session,
+			objects: this.#objectStore.getObjects(),
+		};
+	}
 
-  subscribe(listener) {
-    this.#listeners.add(listener);
-    const snap = this.getSnapshot();
-    listener(snap);
-    return () => this.#listeners.delete(listener);
-  }
+	subscribe(listener) {
+		this.#listeners.add(listener);
+		const snap = this.getSnapshot();
+		listener(snap);
+		return () => this.#listeners.delete(listener);
+	}
 
-  onCursorUpdate(listener) {
-    return this.#cursorManager.onCursorUpdate(listener);
-  }
+	onCursorUpdate(listener) {
+		this.#cursorListeners.add(listener);
+		return () => this.#cursorListeners.delete(listener);
+	}
 
-  #emit() {
-    const snap = this.getSnapshot();
-    for (const listener of this.#listeners) listener(snap);
-  }
+	#emit() {
+		const snap = this.getSnapshot();
+		for (const listener of this.#listeners) listener(snap);
+	}
 
-  // ─── Session Lifecycle ────────────────────────────────────────
+	#emitCursors(data) {
+		for (const listener of this.#cursorListeners) {
+			try {
+				listener(data);
+			} catch {}
+		}
+	}
 
-  async startSession(profileName) {
-    // Clear stale data before starting a new session
-    this.#objectStore.clear(() => this.getSnapshot());
-    this.#cursorManager.clear();
+	// ─── Session Lifecycle ────────────────────────────────────────
 
-    const invite = await this.#sessionManager.prepareHostSession(profileName);
-    await this.#attach(this.#sessionManager.pass, "host", invite);
-    return invite;
-  }
+	async startSession(profileName) {
+		// Clear stale data before starting a new session
+		this.#objectStore.clear();
+		this.#cursorManager.clear();
+		this.#emit();
 
-  async joinSession(profileName, inviteCode) {
-    // Clear stale data before joining a new session
-    this.#objectStore.clear(() => this.getSnapshot());
-    this.#cursorManager.clear();
+		try {
+			const invite = await this.#sessionManager.prepareHostSession(profileName);
+			await this.#attach(this.#sessionManager.pass, "host", invite);
+			return invite;
+		} catch (err) {
+			this.#emit();
+			throw err;
+		}
+	}
 
-    await this.#sessionManager.prepareJoinSession(profileName, inviteCode);
-    await this.#attach(this.#sessionManager.pass, "guest");
-  }
+	async joinSession(profileName, inviteCode) {
+		// Clear stale data before joining a new session
+		this.#objectStore.clear();
+		this.#cursorManager.clear();
+		this.#emit();
 
-  async disconnect() {
-    await this.#sessionManager.disconnect();
-    this.#objectStore.clear(() => this.getSnapshot());
-    this.#cursorManager.clear();
-    this.#pass = null;
-    this.#emit();
-  }
+		try {
+			await this.#sessionManager.prepareJoinSession(profileName, inviteCode);
+			await this.#attach(this.#sessionManager.pass, "guest");
+		} catch (err) {
+			this.#emit();
+			throw err;
+		}
+	}
 
-  // ─── Object CRUD ─────────────────────────────────────────────
+	async disconnect() {
+		await this.#sessionManager.disconnect();
+		this.#objectStore.clear();
+		this.#cursorManager.clear();
+		this.#pass = null;
+		this.#emit();
+	}
 
-  async addObject(obj) {
-    if (!obj) {
-      console.error("[Service] addObject received undefined object!");
-      throw new Error("Cannot add undefined object");
-    }
-    if (!this.#pass) {
-      console.error("[Service] No active session!");
-      throw new Error("No active session");
-    }
+	// ─── Object CRUD ─────────────────────────────────────────────
 
-    const key = obj.id;
-    this.#objectStore.add(obj, () => this.getSnapshot());
+	async addObject(obj) {
+		if (!obj) {
+			console.error("[Service] addObject received undefined object!");
+			throw new Error("Cannot add undefined object");
+		}
+		if (!this.#pass) {
+			console.error("[Service] No active session!");
+			throw new Error("No active session");
+		}
 
-    try {
-      await this.#pass.add(key, JSON.stringify(obj));
-    } catch (err) {
-      console.error("[Service] autopass.add error:", err);
-      this.#objectStore.rollbackAdd(key, () => this.getSnapshot());
-      throw err;
-    }
-  }
+		const key = obj.id;
+		this.#objectStore.add(obj);
+		this.#emit();
 
-  async updateObject(key, obj) {
-    if (!this.#pass) throw new Error("No active session");
+		try {
+			await this.#pass.add(key, JSON.stringify(obj));
+		} catch (err) {
+			console.error("[Service] autopass.add error:", err);
+			this.#objectStore.rollbackAdd(key);
+			this.#emit();
+			throw err;
+		}
+	}
 
-    await this.#pass.add(key, JSON.stringify(obj));
-    this.#objectStore.update(key, obj, () => this.getSnapshot());
-  }
+	async updateObject(key, obj) {
+		if (!this.#pass) throw new Error("No active session");
 
-  async deleteObject(id) {
-    if (!this.#pass) throw new Error("No active session");
+		await this.#pass.add(key, JSON.stringify(obj));
+		this.#objectStore.update(key, obj);
+		this.#emit();
+	}
 
-    try {
-      await this.#pass.remove(id);
-    } catch {
-      // Object may have already been removed
-    }
-    this.#objectStore.remove(id, () => this.getSnapshot());
-  }
+	async deleteObject(id) {
+		if (!this.#pass) throw new Error("No active session");
 
-  async clearBoard() {
-    if (!this.#pass) throw new Error("No active session");
+		try {
+			await this.#pass.remove(id);
+		} catch {
+			// Object may have already been removed
+		}
+		this.#objectStore.remove(id);
+		this.#emit();
+	}
 
-    try {
-      const records = await this.#pass.list().toArray();
-      for (const record of records) {
-        if (record.key.startsWith("object:")) {
-          await this.#pass.remove(record.key);
-        }
-      }
-      this.#objectStore.clear(() => this.getSnapshot());
-    } catch (err) {
-      throw err;
-    }
-  }
+	async clearBoard() {
+		if (!this.#pass) throw new Error("No active session");
 
-  // ─── Cursor Operations ────────────────────────────────────────
-  // Cursors are ephemeral: we emit locally for immediate feedback,
-  // and write to Autopass for P2P propagation, but we do NOT
-  // persist cursor data in our ObjectStore or include it in
-  // snapshots. Remote peers receive cursor updates via the
-  // Autopass "update" event, and we extract cursor data from
-  // those events in #hydrateWithUpdate().
+		try {
+			const records = await this.#pass.list().toArray();
+			for (const record of records) {
+				if (record.key.startsWith("object:")) {
+					await this.#pass.remove(record.key);
+				}
+			}
+			this.#objectStore.clear();
+			this.#emit();
+		} catch (err) {
+			throw err;
+		}
+	}
 
-  async moveCursor(peerId, data) {
-    if (!this.#pass) return;
+	// ─── Cursor Operations ────────────────────────────────────────
+	// Cursors are ephemeral: emit locally for immediate rendering,
+	// and write to Autopass for P2P propagation. Trail data
+	// (EMA smoothing, age) is computed in the renderer — never
+	// stored or transmitted.
 
-    // Emit locally for immediate feedback
-    this.#cursorManager.move(peerId, data);
+	async moveCursor(peerId, data) {
+		if (!this.#pass) return;
 
-    // Write to Autopass for P2P propagation only (never hydrated into state)
-    const key = `cursor:${peerId}`;
-    const value = JSON.stringify({
-      peerId,
-      profileName: data.profileName || peerId,
-      x: data.x ?? 0.5,
-      y: data.y ?? 0.5,
-      clicking: data.clicking ?? false,
-    });
+		const cursorData = this.#cursorManager.move(peerId, data);
 
-    try {
-      await this.#pass.add(key, value);
-    } catch {
-      // Ephemeral — silently ignore errors
-    }
-  }
+		// Emit to local listeners for immediate feedback
+		this.#emitCursors({ type: "update", cursor: cursorData });
 
-  async leaveCursor(peerId) {
-    this.#cursorManager.leave(peerId);
+		// Write to Autopass for P2P propagation
+		const key = `cursor:${peerId}`;
+		const value = JSON.stringify(cursorData);
 
-    if (this.#pass) {
-      try { await this.#pass.remove(`cursor:${peerId}`); } catch {}
-    }
-  }
+		try {
+			await this.#pass.add(key, value);
+		} catch {
+			// Ephemeral — silently ignore errors
+		}
+	}
 
-  removeCursor(peerId) {
-    this.#cursorManager.remove(peerId);
-  }
+	async leaveCursor(peerId) {
+		const existed = this.#cursorManager.leave(peerId);
+		if (!existed) return;
 
-  // ─── Internal: Attach to Autopass ────────────────────────────
-  // Registers the update listener, hydrates initial state from
-  // existing records, and then sets session to "ready".
-  // This ordering ensures listeners are active BEFORE the session
-  // goes live, so no updates are missed.
+		this.#emitCursors({ type: "leave", peerId });
 
-  async #attach(pass, mode, invite = "") {
-    this.#pass = pass;
+		if (this.#pass) {
+			try {
+				await this.#pass.remove(`cursor:${peerId}`);
+			} catch {}
+		}
+	}
 
-    // Register update listener BEFORE hydration so we don't miss
-    // any changes that arrive while we're reading initial state
-    pass.on("update", () => this.#hydrateWithUpdate(pass));
+	removeCursor(peerId) {
+		const existing = this.#cursorManager.get(peerId);
+		if (!existing) return;
+		this.#cursorManager.remove(peerId);
+		this.#emitCursors({ type: "remove", peerId });
+	}
 
-    // Hydrate initial state from existing records
-    await this.#hydrateInitial(pass);
+	// ─── Internal: Attach to Autopass ────────────────────────────
 
-    // NOW set session to "ready" — listeners are active, data loaded
-    this.#sessionManager.setReady(mode, invite);
-  }
+	async #attach(pass, mode, invite = "") {
+		console.log("[PearDrawService] #attach starting...");
+		this.#pass = pass;
 
-  /**
-   * Hydrate from a full record scan. Used on initial attach to load
-   * all existing objects. Cursor records are cleaned up during hydration.
-   */
-  async #hydrateInitial(pass) {
-    const records = await pass.list().toArray();
-    const objectRecords = [];
+		// Register update listener BEFORE hydration so we don't miss
+		// any changes that arrive while we're reading initial state
+		console.log("[PearDrawService] Registering update listener...");
+		pass.on("update", () => this.#hydrateWithUpdate(pass));
 
-    for (const rec of records) {
-      try {
-        if (rec.key.startsWith("object:")) {
-          objectRecords.push(rec);
-        } else if (rec.key.startsWith("cursor:")) {
-          // Process initial cursor state from persistent records
-          // (peer cursors that existed before we joined)
-          const value =
-            typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
-          const peerId = rec.key.replace("cursor:", "");
-          this.#cursorManager.hydratePeer(peerId, value);
-        }
-      } catch {
-        // Skip invalid records
-      }
-    }
+		// Hydrate initial state from existing records
+		console.log("[PearDrawService] Hydrating initial state...");
+		await this.#hydrateInitial(pass);
 
-    this.#objectStore.hydrate(objectRecords, () => this.getSnapshot());
-  }
+		// NOW set session to "ready" — listeners active, data loaded
+		console.log("[PearDrawService] Setting session to ready...");
+		this.#sessionManager.setReady(mode, invite);
+		console.log("[PearDrawService] #attach complete");
+	}
 
-  /**
-   * Called on every Autopass "update" event. Re-syncs object state
-   * and processes cursor updates in real-time.
-   */
-  async #hydrateWithUpdate(pass) {
-    const records = await pass.list().toArray();
-    const objectRecords = [];
+	/**
+	 * Hydrate from a full record scan. Used on initial attach to load
+	 * all existing objects and cursor positions.
+	 */
+	async #hydrateInitial(pass) {
+		console.log("[PearDrawService] #hydrateInitial: starting list().toArray()...");
+		const records = await pass.list().toArray();
+		console.log("[PearDrawService] #hydrateInitial: got", records.length, "records");
+		const objectRecords = [];
 
-    for (const rec of records) {
-      try {
-        if (rec.key.startsWith("object:")) {
-          objectRecords.push(rec);
-        } else if (rec.key.startsWith("cursor:")) {
-          const value =
-            typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
-          const peerId = rec.key.replace("cursor:", "");
-          this.#cursorManager.hydratePeer(peerId, value);
-        }
-      } catch {
-        // Skip invalid records
-      }
-    }
+		for (const rec of records) {
+			try {
+				if (rec.key.startsWith("object:")) {
+					objectRecords.push(rec);
+				} else if (rec.key.startsWith("cursor:")) {
+					// Hydrate cursor state from persistent records (peers who
+					// were already present when we joined)
+					const value =
+						typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
+					const peerId = rec.key.replace("cursor:", "");
+					this.#cursorManager.hydratePeer(peerId, value);
+				}
+			} catch {
+				// Skip invalid records
+			}
+		}
 
-    this.#objectStore.hydrate(objectRecords, () => this.getSnapshot());
-  }
+		this.#objectStore.hydrate(objectRecords);
+		this.#emit();
 
-  // ─── Cleanup ─────────────────────────────────────────────────
+		// Emit cursor updates for any peers we discovered from records
+		for (const rec of records) {
+			try {
+				if (rec.key.startsWith("cursor:")) {
+					const value =
+						typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
+					const peerId = rec.key.replace("cursor:", "");
+					this.#emitCursors({ type: "update", cursor: { peerId, ...value } });
+				}
+			} catch {}
+		}
+	}
 
-  async dispose() {
-    await this.#sessionManager.dispose();
-    this.#objectStore.dispose();
-    this.#cursorManager.dispose();
-    this.#listeners.clear();
-    this.#pass = null;
-  }
+	/**
+	 * Called on every Autopass "update" event. Re-syncs object state
+	 * and processes cursor updates in real-time.
+	 */
+	async #hydrateWithUpdate(pass) {
+		const records = await pass.list().toArray();
+		const objectRecords = [];
+
+		for (const rec of records) {
+			try {
+				if (rec.key.startsWith("object:")) {
+					objectRecords.push(rec);
+				} else if (rec.key.startsWith("cursor:")) {
+					const value =
+						typeof rec.value === "string" ? JSON.parse(rec.value) : rec.value;
+					const peerId = rec.key.replace("cursor:", "");
+					this.#cursorManager.hydratePeer(peerId, value);
+					this.#emitCursors({ type: "update", cursor: { peerId, ...value } });
+				}
+			} catch {
+				// Skip invalid records
+			}
+		}
+
+		this.#objectStore.hydrate(objectRecords);
+		this.#emit();
+	}
+
+	// ─── Cleanup ─────────────────────────────────────────────────
+
+	async dispose() {
+		await this.#sessionManager.dispose();
+		this.#objectStore.clear();
+		this.#cursorManager.clear();
+		this.#listeners.clear();
+		this.#cursorListeners.clear();
+		this.#pass = null;
+	}
 }
 
 export { PearDrawService };

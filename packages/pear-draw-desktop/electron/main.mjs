@@ -114,15 +114,15 @@ async function getWorker(specifier) {
 	}
 
 	workers.set(specifier, worker);
-	
+
 	// Pipe worker output to main process logs
 	worker.stdout?.on("data", (data) => {
-		// Suppress worker stdout in production
+		console.log("[Worker]", data.toString().trim());
 	});
 	worker.stderr?.on("data", (data) => {
 		console.error("[Worker stderr]", data.toString().trim());
 	});
-	
+
 	worker.on("data", (data) => {
 		sendToAll(`pear:worker:ipc:${specifier}`, data);
 	});
