@@ -8,14 +8,14 @@
 
 ## Why
 
-- No registeration. Add username and share boards.
-- Data shared directly among users
+- Use without registration
+- Data shared among users, no central server
 - Local first, magically sync'd when online
+- Live cursors
 - Carefully designed for better UX
 
 ## Usage
 
 <div align="center">
   <img src="assets/ui-2.webp" alt="UI main menu" width="400">
-  <img src="assets/ui-3.webp" alt="UI join session" width="400">
 </div>
