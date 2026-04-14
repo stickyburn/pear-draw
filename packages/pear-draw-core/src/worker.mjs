@@ -135,3 +135,28 @@ service.onCursorUpdate((data) => {
 
 Bare.on("uncaughtException", (err) => console.error("[Worker] Uncaught exception:", err));
 Bare.on("unhandledRejection", (err) => console.error("[Worker] Unhandled rejection:", err));
+
+// --- Graceful shutdown ----------------------------------------------------
+// SIGTERM is sent by Electron before force-killing. We flush all Autobase/
+// Corestore state so the next launch can recover the board cleanly.
+let shuttingDown = false;
+
+async function gracefulShutdown() {
+	if (shuttingDown) return;
+	shuttingDown = true;
+	console.log("[Worker] Graceful shutdown — flushing state...");
+	try {
+		await service.dispose();
+		console.log("[Worker] State flushed, exiting.");
+	} catch (err) {
+		console.error("[Worker] Error during shutdown:", err);
+	}
+	Bare.exit(0);
+}
+
+// Try process.on('SIGTERM') first (works if bare-process is loaded)
+if (typeof process !== "undefined" && typeof process.on === "function") {
+	process.on("SIGTERM", () => gracefulShutdown());
+}
+// Also listen on the IPC channel end — sidecar _predestroy() ends the IPC
+Bare.IPC.on("end", () => gracefulShutdown());

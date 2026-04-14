@@ -426,6 +426,11 @@ export class SessionManager {
 			await this.#base.close().catch(() => {});
 			this.#base = null;
 			this.#view = null;
+			// base.close() closes the internal AutoStore, which also closes
+			// the Corestore we passed in. Reset so #ensureStarted() recreates
+			// a fresh Corestore pointing to the same on-disk data.
+			this.#store = null;
+			this.#started = false;
 		}
 	}
 
@@ -436,6 +441,9 @@ export class SessionManager {
 			await this.#swarm.destroy();
 			this.#swarm = null;
 		}
+		// #closeBase() already resets #store and #started when base.close()
+		// nukes the Corestore. But if #closeBase() was a no-op (no active base),
+		// close the store explicitly.
 		if (this.#store) {
 			await this.#store.close();
 			this.#store = null;

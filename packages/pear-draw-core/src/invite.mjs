@@ -2,11 +2,6 @@
 // No BlindPairing needed - just share the key + encryption key.
 import b4a from "b4a";
 
-/**
- * @param {string|Buffer} boardKey - The autobase key (32 bytes, hex string or buffer)
- * @param {string|Buffer} encryptionKey - The encryption key (32 bytes, hex string or buffer)
- * @returns {string} - URL-safe invite code
- */
 export function createInvite(boardKey, encryptionKey) {
 	const keyBuffer =
 		typeof boardKey === "string" ? b4a.from(boardKey, "hex") : boardKey;
@@ -17,18 +12,12 @@ export function createInvite(boardKey, encryptionKey) {
 
 	const combined = b4a.concat([keyBuffer, encBuffer]);
 
-	// URL-safe, no padding
 	return b4a.toString(combined, "base64url");
 }
 
-/**
- * @param {string} inviteCode - The invite code (base64url encoded)
- * @returns {Object} - { boardKey: string (hex), encryptionKey: string (hex) }
- */
 export function parseInvite(inviteCode) {
 	const combined = b4a.from(inviteCode, "base64url");
 
-	// Validate length (64 bytes = 32 + 32)
 	if (combined.byteLength !== 64) {
 		throw new Error(
 			`Invalid invite code: expected 64 bytes, got ${combined.byteLength}`,
@@ -41,10 +30,6 @@ export function parseInvite(inviteCode) {
 	return { boardKey, encryptionKey };
 }
 
-/**
- * @param {string} inviteCode - The invite code to validate
- * @returns {boolean} - Whether the code is valid
- */
 export function isValidInvite(inviteCode) {
 	if (typeof inviteCode !== "string" || inviteCode.length === 0) {
 		return false;
@@ -58,12 +43,7 @@ export function isValidInvite(inviteCode) {
 	}
 }
 
-/**
- * Alternative to base64url for shorter codes
- * @param {string|Buffer} boardKey - The autobase key
- * @param {string|Buffer} encryptionKey - The encryption key
- * @returns {string} - z32 encoded invite code
- */
+// Alternative to base64url for shorter codes
 export function createInviteZ32(boardKey, encryptionKey) {
 	const keyBuffer =
 		typeof boardKey === "string" ? b4a.from(boardKey, "hex") : boardKey;
@@ -76,10 +56,6 @@ export function createInviteZ32(boardKey, encryptionKey) {
 	return b4a.toString(combined, "z32");
 }
 
-/**
- * @param {string} inviteCode - The z32 encoded invite code
- * @returns {Object} - { boardKey: string (hex), encryptionKey: string (hex) }
- */
 export function parseInviteZ32(inviteCode) {
 	const combined = b4a.from(inviteCode, "z32");
 

@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────
-// Autobase apply function — deterministic merge for all peers.
-//
 // CRITICAL: This function MUST be deterministic.
-// All timestamps must come from node.value, not from Date.now().
 // Autobase may undo and replay nodes during reordering.
-// ─────────────────────────────────────────────────────────────────
 
 export function open(store) {
 	return store.get("drawing-view", { valueEncoding: "json" });
@@ -19,7 +14,9 @@ export async function apply(nodes, view, host) {
 
 		switch (type) {
 			case "add-writer": {
-				console.log(`[apply] add-writer from ${fromKey}: ${data.key.slice(0, 8)}...`);
+				console.log(
+					`[apply] add-writer from ${fromKey}: ${data.key.slice(0, 8)}...`,
+				);
 				const writerKey = Buffer.from(data.key, "hex");
 				await host.addWriter(writerKey, { indexer: true });
 				break;
@@ -33,10 +30,7 @@ export async function apply(nodes, view, host) {
 			}
 
 			case "join-request": {
-				// A peer wants to join — they appended this optimistically.
-				// ackWriter commits the optimistic write; addWriter promotes
-				// them to a full writer.
-				// NOTE: We set indexer: false for guests so the host remains
+				// We set indexer: false for guests so the host remains
 				// the sole sequencer, ensuring stable linearization.
 				const writerKey = node.from.key;
 				try {
@@ -64,7 +58,6 @@ export async function apply(nodes, view, host) {
 			}
 
 			case "cursor": {
-				// Cursor updates are ephemeral - just append to view
 				await view.append({ ...node.value, ephemeral: true });
 				break;
 			}
@@ -76,7 +69,6 @@ export async function apply(nodes, view, host) {
 	}
 }
 
-// Rebuild the canvas objects from the view core
 export async function hydrateView(view) {
 	await view.ready();
 
@@ -107,7 +99,6 @@ export async function hydrateView(view) {
 	return Array.from(objects.values());
 }
 
-// Extract the most recent cursor position per peer from the view core
 export async function hydrateCursors(view) {
 	await view.ready();
 

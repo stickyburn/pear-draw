@@ -110,7 +110,13 @@ async function getWorker(specifier) {
 	const worker = pearRuntime.run(workerPath, [pearRuntime.storage]);
 
 	function onBeforeQuit() {
-		worker.destroy();
+		// SIGTERM lets the worker flush Autobase/Corestore state before exit.
+		// Force-kill happens in the global before-quit handler after a grace period.
+		try {
+			worker._process.kill("SIGTERM");
+		} catch {
+			worker.destroy();
+		}
 	}
 
 	workers.set(specifier, worker);
@@ -194,8 +200,29 @@ if (!lock) {
 		}
 	});
 
-	// Proper cleanup on app quit
+	// Proper cleanup on app quit — give workers time to flush state
 	app.on("before-quit", async () => {
+		// Send SIGTERM to all workers so they can flush Autobase/Corestore state
+		for (const [specifier, worker] of workers) {
+			try {
+				worker._process.kill("SIGTERM");
+			} catch {
+				// Process may have already exited
+			}
+		}
+
+		// Wait up to 2s for workers to exit cleanly
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+
+		// Force-kill any workers still running
+		for (const [specifier, worker] of workers) {
+			try {
+				worker.destroy();
+			} catch {
+				// Already dead
+			}
+		}
+
 		if (pear) {
 			await pear.close();
 		}
