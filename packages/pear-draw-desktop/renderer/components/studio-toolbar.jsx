@@ -171,8 +171,8 @@ export function StudioToolbar(props) {
 					...glass.heavy,
 					"border-radius": "16px",
 					padding: "8px",
-					display: "flex",
-					"flex-direction": "column",
+					display: "grid",
+					"grid-template-columns": "repeat(2, 1fr)",
 					gap: "4px",
 					"box-shadow": `${shadows.lg}, 0 0 0 1px rgba(139, 92, 246, 0.08)`,
 				}}

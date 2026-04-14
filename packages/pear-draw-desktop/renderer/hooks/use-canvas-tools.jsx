@@ -13,7 +13,7 @@ import {
 export function useCanvasTools(getCanvas, options = {}) {
 	const [activeTool, setActiveTool] = createSignal("freehand");
 	const [strokeColor, setStrokeColor] = createSignal(
-		options.strokeColor || "#f5f0eb",
+		options.strokeColor || "#10b981",
 	);
 	const [strokeWidth, setStrokeWidth] = createSignal(options.strokeWidth || 5);
 
