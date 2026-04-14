@@ -13,9 +13,18 @@ export const CMD_DISCONNECT = 8;
 export const CMD_DELETE_OBJECT = 9;
 export const CMD_CURSOR_MOVE = 10;
 export const CMD_CURSOR_LEAVE = 11;
+export const CMD_RECONNECT = 12;
+export const CMD_SUSPEND = 13;
 
 // One-way event pushes (id=0 in bare-rpc framing)
 export const EVT_SNAPSHOT = 100;
 export const EVT_CURSOR_UPDATE = 101;
 export const EVT_CURSOR_LEAVE = 102;
 export const EVT_CURSOR_REMOVE = 103;
+
+// Session status constants
+export const STATUS_IDLE = 'idle';
+export const STATUS_CONNECTING = 'connecting';
+export const STATUS_READY = 'ready';
+export const STATUS_SUSPENDED = 'suspended';
+export const STATUS_ERROR = 'error';

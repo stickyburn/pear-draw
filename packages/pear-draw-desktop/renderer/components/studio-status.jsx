@@ -78,7 +78,8 @@ export function StudioStatus(props) {
 
 	const handleDisconnect = () => {
 		setIsOpen(false);
-		props.onDisconnect?.();
+		// Use soft disconnect by default - allows instant reconnect
+		props.onDisconnect?.({ soft: true });
 	};
 
 	return (

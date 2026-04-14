@@ -1,33 +1,19 @@
 # 🍐 Pear Draw ✍️
 
-**A collaborative, P2P canvas built on Pear and Solidjs.**
+**Infinite canvas - Private and Peer-to-Peer**
 
 <div align="center">
   <img src="assets/ui-1.webp" alt="Pear Draw UI" width="700">
 </div>
 
-## Functionality
+## Why
 
-- User can host a canvas (autopass)
-- User can join a canvas (autopass.pair)
-- Users can collaborate in real-time (autobase)
-
-## Technical features
-
-- Runtime and renderer isolation (pear-messages)
-- CSS as style-objects
-- kebab-case for react files, following Holepunch repos
-- Brittle for tests, sweetalert2, and biome for lint+format
+- No registeration. Add username and share boards.
+- Data shared directly among users
+- Local first, magically sync'd when online
+- Carefully designed for better UX
 
 ## Usage
-
-`git clone https://github.com/stickyburn/pear-draw.git`
-
-`pnpm install`
-
-`pnpm run host:dev` [Host session, copy link from menu]
-
-`pnpm run guest:dev` [Join session, add copied link]
 
 <div align="center">
   <img src="assets/ui-2.webp" alt="UI main menu" width="400">

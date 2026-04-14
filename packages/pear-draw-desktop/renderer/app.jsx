@@ -56,6 +56,9 @@ export function App() {
 		startHost,
 		joinHost,
 		disconnect,
+		reconnect,
+		canReconnect,
+		hardDisconnect,
 		clearBoard,
 		addObject,
 		updateObject,
@@ -65,6 +68,8 @@ export function App() {
 	} = usePearDrawSession();
 
 	const isConnected = () => session().status === "ready";
+	const localKey = () => session().localKey;
+	const isSuspended = () => session().status === "suspended";
 	const canOpenConnectionMenu = () =>
 		session().status === "idle" || session().status === "error";
 
@@ -92,6 +97,8 @@ export function App() {
 	let containerEl = null;
 	let fabricCanvasEl = null;
 	let fabricCanvas = null;
+
+	const peerId = createMemo(() => localKey() || profileName());
 
 	const initFabricCanvas = () => {
 		if (!fabricCanvasEl || fabricCanvas) return;
@@ -127,13 +134,13 @@ export function App() {
 
 		setupEventHandlers({
 			onShapeCreated: (shape) => {
-				const meta = setObjectMeta(shape, profileName());
+				const meta = setObjectMeta(shape, peerId());
 				if (isConnected()) addObject(meta);
 				return meta;
 			},
 			onPathCreated: (path) => {
 				if (isRemoteUpdate) return;
-				const meta = setObjectMeta(path, profileName());
+				const meta = setObjectMeta(path, peerId());
 				if (isConnected()) addObject(meta);
 			},
 			onObjectModified: (target) => {
@@ -160,15 +167,16 @@ export function App() {
 		fabricCanvas.on("mouse:move", (e) => {
 			if (!e.e) return;
 			const pointer = fabricCanvas.getScenePoint(e.e);
-			updateCursor(profileName(), {
+			updateCursor(peerId(), {
 				x: pointer.x / fabricCanvas.width,
 				y: pointer.y / fabricCanvas.height,
+				profileName: profileName(),
 			});
 		});
 
 		// Send cursor leave when pointer exits the canvas
 		fabricCanvas.on("mouse:out", () => {
-			leaveCursor(profileName());
+			leaveCursor(peerId());
 		});
 
 		onCleanup(() => {
@@ -255,9 +263,12 @@ export function App() {
 		sync();
 	});
 
-	// Handle disconnect
+	// Handle disconnect/suspend state
 	createEffect(() => {
-		if (session().status === "idle" && fabricCanvas) {
+		if (
+			(session().status === "idle" || session().status === "suspended") &&
+			fabricCanvas
+		) {
 			isRemoteUpdate = true;
 			fabricCanvas.clear();
 			fabricCanvas.backgroundColor = "transparent";
@@ -296,8 +307,6 @@ export function App() {
 		fabricCanvasEl = el;
 		requestAnimationFrame(initFabricCanvas);
 	};
-
-	const peerId = createMemo(() => profileName());
 
 	return (
 		<>
@@ -352,17 +361,6 @@ export function App() {
 							>
 								Pear Draw
 							</h1>
-							<span
-								style={{
-									"font-family": "var(--font-mono)",
-									"font-size": "0.65rem",
-									color: studio.text.muted,
-									"letter-spacing": "0.1em",
-									"text-transform": "uppercase",
-								}}
-							>
-								Studio
-							</span>
 						</div>
 					</header>
 				)}
@@ -378,6 +376,150 @@ export function App() {
 						onDisconnect={disconnect}
 						isFocusMode={isFocusMode}
 					/>
+				)}
+
+				{/* ═══ Suspended State - Reconnect Banner ═══ */}
+				{isSuspended() && (
+					<div
+						style={{
+							position: "fixed",
+							top: "50%",
+							left: "50%",
+							transform: "translate(-50%, -50%)",
+							"z-index": 100,
+							display: "flex",
+							"flex-direction": "column",
+							"align-items": "center",
+							gap: "24px",
+							padding: "40px 48px",
+							background: studio.elevated,
+							border: `1px solid ${studio.border}`,
+							"border-radius": "20px",
+							"box-shadow": "0 24px 64px rgba(0,0,0,0.4)",
+							animation: "studio-fade-in 0.4s ease both",
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								"flex-direction": "column",
+								"align-items": "center",
+								gap: "12px",
+							}}
+						>
+							<div
+								style={{
+									width: "48px",
+									height: "48px",
+									"border-radius": "50%",
+									background: `${studio.neon.violet}20`,
+									border: `2px solid ${studio.neon.violet}`,
+									display: "flex",
+									"align-items": "center",
+									"justify-content": "center",
+								}}
+							>
+								<svg
+									width="24"
+									height="24"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke={studio.neon.violet}
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<title>Paused</title>
+									<path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+									<line x1="12" y1="2" x2="12" y2="12" />
+								</svg>
+							</div>
+							<h2
+								style={{
+									margin: 0,
+									"font-family": "var(--font-display)",
+									"font-size": "1.5rem",
+									"font-weight": 600,
+									color: studio.text.primary,
+								}}
+							>
+								Session Paused
+							</h2>
+							<p
+								style={{
+									margin: 0,
+									color: studio.text.secondary,
+									"font-size": "0.9rem",
+								}}
+							>
+								Reconnect instantly to continue collaborating.
+							</p>
+						</div>
+
+						<div
+							style={{
+								display: "flex",
+								gap: "12px",
+							}}
+						>
+							<button
+								type="button"
+								onClick={async () => {
+									try {
+										await reconnect();
+									} catch (err) {
+										console.error("Reconnect failed:", err);
+									}
+								}}
+								style={{
+									padding: "12px 32px",
+									background: studio.neon.violet,
+									border: "none",
+									"border-radius": "12px",
+									color: "white",
+									"font-size": "0.9rem",
+									"font-weight": 600,
+									cursor: "pointer",
+									transition: `all ${durations.fast} ${easings.spring}`,
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.transform = "scale(1.02)";
+									e.currentTarget.style.boxShadow = `0 8px 24px ${studio.neon.violet}40`;
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.transform = "scale(1)";
+									e.currentTarget.style.boxShadow = "none";
+								}}
+							>
+								Reconnect
+							</button>
+							<button
+								type="button"
+								onClick={hardDisconnect}
+								style={{
+									padding: "12px 24px",
+									background: "transparent",
+									border: `1px solid ${studio.border}`,
+									"border-radius": "12px",
+									color: studio.text.secondary,
+									"font-size": "0.9rem",
+									"font-weight": 500,
+									cursor: "pointer",
+									transition: `all ${durations.fast} ${easings.spring}`,
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.background = studio.surface;
+									e.currentTarget.style.color = studio.text.primary;
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.background = "transparent";
+									e.currentTarget.style.color = studio.text.secondary;
+								}}
+							>
+								Leave Board
+							</button>
+						</div>
+					</div>
 				)}
 
 				{/* ═══ Toolbar ═══ */}

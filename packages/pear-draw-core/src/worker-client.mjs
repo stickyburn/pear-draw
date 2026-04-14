@@ -10,7 +10,9 @@ import {
 	CMD_DISCONNECT,
 	CMD_GET_SNAPSHOT,
 	CMD_JOIN_HOST,
+	CMD_RECONNECT,
 	CMD_START_HOST,
+	CMD_SUSPEND,
 	CMD_UPDATE_CURSOR,
 	CMD_UPDATE_OBJECT,
 	EVT_CURSOR_LEAVE,
@@ -152,9 +154,41 @@ export class PearDrawClient {
 		return this.#sendRequest(CMD_CLEAR_BOARD, {});
 	}
 
-	async disconnect() {
+	/**
+	 * Disconnect from the current session.
+	 * @param {Object} options
+	 * @param {boolean} options.soft - If true, suspend instead of full disconnect (default: true)
+	 */
+	async disconnect(options = { soft: true }) {
 		await this.init();
-		return this.#sendRequest(CMD_DISCONNECT, {});
+		return this.#sendRequest(CMD_DISCONNECT, { soft: options.soft !== false });
+	}
+
+	/**
+	 * Reconnect to a suspended session.
+	 * Instantly resumes without re-pairing.
+	 */
+	async reconnect() {
+		await this.init();
+		return this.#sendRequest(CMD_RECONNECT, {});
+	}
+
+	/**
+	 * Suspend the current session (alias for disconnect({ soft: true })).
+	 */
+	async suspend() {
+		await this.init();
+		return this.#sendRequest(CMD_SUSPEND, {});
+	}
+
+	/**
+	 * Check if the current session can be reconnected.
+	 * Returns the session status from the snapshot.
+	 */
+	async canReconnect() {
+		await this.init();
+		const snapshot = await this.getSnapshot();
+		return snapshot.session?.status === 'suspended';
 	}
 
 	async getSnapshot() {

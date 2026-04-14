@@ -15,11 +15,13 @@
 		"src/"
 	],
 	"dependencies": {
-		"autopass": "^3.4.0",
-		"corestore": "^7.9.2",
+		"autobase": "^7.27.3",
+		"b4a": "^1.6.6",
+		"bare-fs": "^4.7.0",
 		"bare-rpc": "^1.2.0",
 		"compact-encoding": "^2.19.2",
-		"b4a": "^1.6.6",
+		"corestore": "^7.9.2",
+		"hyperswarm": "^4.14.0",
 		"streamx": "^2.25.0"
 	}
 }

@@ -10,7 +10,9 @@ import {
 	CMD_DISCONNECT,
 	CMD_GET_SNAPSHOT,
 	CMD_JOIN_HOST,
+	CMD_RECONNECT,
 	CMD_START_HOST,
+	CMD_SUSPEND,
 	CMD_UPDATE_CURSOR,
 	CMD_UPDATE_OBJECT,
 	EVT_CURSOR_LEAVE,
@@ -83,8 +85,19 @@ router.respond(CMD_CLEAR_BOARD, async () => {
 	return JSON.stringify({ success: true });
 });
 
-router.respond(CMD_DISCONNECT, async () => {
-	await service.disconnect();
+router.respond(CMD_DISCONNECT, async (req) => {
+	const data = req.data ? JSON.parse(c.decode(c.raw.utf8, req.data)) : {};
+	await service.disconnect({ soft: data.soft !== false });
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_RECONNECT, async () => {
+	await service.reconnect();
+	return JSON.stringify({ success: true });
+});
+
+router.respond(CMD_SUSPEND, async () => {
+	await service.disconnect({ soft: true });
 	return JSON.stringify({ success: true });
 });
 

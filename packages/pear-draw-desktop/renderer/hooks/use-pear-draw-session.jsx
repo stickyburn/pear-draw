@@ -91,16 +91,46 @@ export function usePearDrawSession() {
 	return {
 		session: () => snapshot().session,
 		objects: () => snapshot().objects,
+		localKey: () => snapshot().session.localKey,
 		cursors,
 		canDraw: () => snapshot().session.status === "ready",
+		canReconnect: () => snapshot().session.status === "suspended",
 		startHost: (profile) => client?.startHost(profile),
 		joinHost: (profile, invite) => client?.joinHost(profile, invite),
-		disconnect: async () => {
-			await client?.disconnect();
+
+		/**
+		 * Disconnect from the current session.
+		 * @param {Object} options
+		 * @param {boolean} options.soft - If true, suspend for instant reconnect (default: true)
+		 */
+		disconnect: async (options = { soft: true }) => {
+			await client?.disconnect(options);
+			// Don't reset state on soft disconnect - keep snapshot for reconnect
+			if (!options.soft) {
+				setSnapshot(DEFAULT_SNAPSHOT);
+				setCursors([]);
+				interpolator?.destroy();
+			}
+		},
+
+		/**
+		 * Reconnect to a suspended session.
+		 */
+		reconnect: async () => {
+			await client?.reconnect();
+		},
+
+		/**
+		 * Full disconnect - releases all resources.
+		 * Use this when leaving a board permanently.
+		 */
+		hardDisconnect: async () => {
+			await client?.disconnect({ soft: false });
 			setSnapshot(DEFAULT_SNAPSHOT);
 			setCursors([]);
 			interpolator?.destroy();
 		},
+
 		clearBoard: () => client?.clearBoard(),
 		addObject: (obj) => client?.addObject(obj),
 		updateObject: (id, obj) => client?.updateObject(id, obj),
